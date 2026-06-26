@@ -24,7 +24,7 @@
 
   <view class="profile-card">
     <view class="profile-line">
-      <text class="profile-label">账号 ID</text>
+      <text class="profile-label">用户ID</text>
       <text class="profile-value">{{memberIdText}}</text>
     </view>
     <view class="profile-line">

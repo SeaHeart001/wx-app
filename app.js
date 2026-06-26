@@ -1,5 +1,8 @@
 const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
+const TOKEN_KEY = "wx_app_token"
+// Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
+const API_BASE_URL = "https://haoiwx.netlify.app/.netlify/functions"
 
 function pad(value) {
   return String(value).padStart(2, "0")
@@ -15,17 +18,6 @@ function formatTime(date) {
     pad(date.getMinutes()),
     pad(date.getSeconds())
   ].join(":")
-}
-
-function normalizeUserInfo(userInfo = {}) {
-  return {
-    nickname: userInfo.nickName || "",
-    avatarUrl: userInfo.avatarUrl || "",
-    gender: userInfo.gender || 0,
-    city: userInfo.city || "",
-    province: userInfo.province || "",
-    country: userInfo.country || ""
-  }
 }
 
 function maskCode(code) {
@@ -100,11 +92,40 @@ function getNavigationLayout(options = {}) {
   }
 }
 
+function normalizeProfile(user = {}) {
+  return {
+    id: user._id || user.id || "",
+    openid: user.openid || "",
+    unionid: user.unionid || "",
+    nickname: user.nickname || "",
+    avatarUrl: user.avatarUrl || "",
+    gender: user.gender || 0,
+    city: user.city || "",
+    province: user.province || "",
+    country: user.country || "",
+    source: user.profileSource || user.source || "",
+    authorized: Boolean(user.nickname || user.avatarUrl),
+    updatedAt: user.updatedAt ? formatTime(new Date(user.updatedAt)) : ""
+  }
+}
+
+function getErrorMessage(err) {
+  if (!err) {
+    return "请求失败"
+  }
+
+  return err.message || err.errMsg || "请求失败"
+}
+
 App({
   globalData: {
     createdAt: "2026-06-17",
     displayId: "",
+    token: "",
     userProfile: {
+      id: "",
+      openid: "",
+      unionid: "",
       nickname: "",
       avatarUrl: "",
       gender: 0,
@@ -118,23 +139,28 @@ App({
     loginCode: "",
     loginCodePreview: "",
     loginAt: "",
+    loginAtTimestamp: 0,
     navigationLayoutCache: {}
   },
 
   onLaunch() {
-    this.restoreProfile()
+    this.restoreSession()
     this.restoreDisplayId()
   },
 
-  restoreProfile() {
-    const stored = wx.getStorageSync(STORAGE_KEY)
-    if (!stored) {
-      return
+  restoreSession() {
+    const storedProfile = wx.getStorageSync(STORAGE_KEY)
+    const storedToken = wx.getStorageSync(TOKEN_KEY)
+
+    if (storedToken) {
+      this.globalData.token = storedToken
     }
 
-    this.globalData.userProfile = {
-      ...this.globalData.userProfile,
-      ...stored
+    if (storedProfile) {
+      this.globalData.userProfile = {
+        ...this.globalData.userProfile,
+        ...storedProfile
+      }
     }
   },
 
@@ -150,6 +176,58 @@ App({
     wx.setStorageSync(DISPLAY_ID_KEY, nextId)
   },
 
+  request(options = {}) {
+    const url = options.url && options.url.indexOf("http") === 0
+      ? options.url
+      : `${API_BASE_URL}${options.url || ""}`
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.header || {})
+    }
+
+    if (this.globalData.token) {
+      headers.Authorization = `Bearer ${this.globalData.token}`
+    }
+
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url,
+        method: options.method || "POST",
+        data: options.data || {},
+        header: headers,
+        timeout: options.timeout || 15000,
+        success: (res) => {
+          const data = res.data || {}
+
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data)
+            return
+          }
+
+          reject(new Error(data.message || `请求失败 ${res.statusCode}`))
+        },
+        fail: reject
+      })
+    })
+  },
+
+  saveSession(token, user) {
+    const profile = normalizeProfile(user)
+
+    this.globalData.token = token || this.globalData.token
+    this.globalData.userProfile = {
+      ...this.globalData.userProfile,
+      ...profile
+    }
+
+    if (this.globalData.token) {
+      wx.setStorageSync(TOKEN_KEY, this.globalData.token)
+    }
+
+    wx.setStorageSync(STORAGE_KEY, this.globalData.userProfile)
+    return this.globalData.userProfile
+  },
+
   saveUserProfile(profile) {
     const nextProfile = {
       ...this.globalData.userProfile,
@@ -163,22 +241,19 @@ App({
   },
 
   clearUserProfile() {
-    this.clearStoredProfile()
+    this.globalData.token = ""
     this.globalData.loginCode = ""
     this.globalData.loginCodePreview = ""
     this.globalData.loginAt = ""
     this.globalData.loginAtTimestamp = 0
+    wx.removeStorageSync(TOKEN_KEY)
+    this.clearStoredProfile()
   },
 
-  ensureLogin(done) {
-    const currentTime = Date.now()
-    if (
-      this.globalData.loginCode &&
-      this.globalData.loginAtTimestamp &&
-      currentTime - this.globalData.loginAtTimestamp < 4 * 60 * 1000
-    ) {
+  ensureLogin(done, fail) {
+    if (this.globalData.token) {
       if (typeof done === "function") {
-        done(this.globalData.loginCode)
+        done(this.globalData.userProfile)
       }
       return
     }
@@ -188,6 +263,9 @@ App({
       success: (result) => {
         if (!result.code) {
           this.clearLoginState()
+          if (typeof fail === "function") {
+            fail(new Error("未获取到微信登录 code"))
+          }
           return
         }
 
@@ -196,26 +274,48 @@ App({
         this.globalData.loginAtTimestamp = Date.now()
         this.globalData.loginAt = formatTime(new Date())
 
-        if (typeof done === "function") {
-          done(result.code)
-        }
+        this.request({
+          url: "/wxusers/login",
+          data: {
+            code: result.code
+          }
+        }).then((data) => {
+          this.saveSession(data.token, data.user)
+
+          if (typeof done === "function") {
+            done(this.globalData.userProfile)
+          }
+        }).catch((err) => {
+          this.clearLoginState()
+          if (typeof fail === "function") {
+            fail(err)
+          }
+        })
       },
-      fail: () => {
+      fail: (err) => {
         this.clearLoginState()
+        if (typeof fail === "function") {
+          fail(err)
+        }
       }
     })
   },
 
   clearLoginState() {
+    this.globalData.token = ""
     this.globalData.loginCode = ""
     this.globalData.loginCodePreview = ""
     this.globalData.loginAt = ""
     this.globalData.loginAtTimestamp = 0
+    wx.removeStorageSync(TOKEN_KEY)
     this.clearStoredProfile()
   },
 
   clearStoredProfile() {
     this.globalData.userProfile = {
+      id: "",
+      openid: "",
+      unionid: "",
       nickname: "",
       avatarUrl: "",
       gender: 0,
@@ -229,16 +329,8 @@ App({
     wx.removeStorageSync(STORAGE_KEY)
   },
 
-  applyAuthorizedUserInfo(userInfo) {
-    return this.saveUserProfile({
-      ...normalizeUserInfo(userInfo),
-      source: "quick-authorize",
-      authorized: true
-    })
-  },
-
   getDisplayName() {
-    if (!this.globalData.loginCode) {
+    if (!this.globalData.token) {
       return "访客"
     }
 
@@ -251,14 +343,39 @@ App({
   },
 
   saveManualProfile(profile) {
-    return this.saveUserProfile({
+    const localProfile = this.saveUserProfile({
       ...profile,
       source: "manual",
+      profileSource: "manual",
       authorized: Boolean(profile.nickname || profile.avatarUrl)
+    })
+
+    if (!this.globalData.token) {
+      return Promise.resolve(localProfile)
+    }
+
+    return this.request({
+      url: "/wxusers/profile",
+      data: {
+        nickname: localProfile.nickname,
+        avatarUrl: localProfile.avatarUrl,
+        gender: localProfile.gender,
+        city: localProfile.city,
+        province: localProfile.province,
+        country: localProfile.country,
+        profileSource: "manual"
+      }
+    }).then((data) => {
+      return this.saveSession(null, data.user)
     })
   },
 
   getDisplayId() {
+    const openid = this.globalData.userProfile && this.globalData.userProfile.openid
+    if (openid) {
+      return openid
+    }
+
     if (!this.globalData.displayId) {
       this.restoreDisplayId()
     }
@@ -283,7 +400,7 @@ App({
 
   getProfileViewModel() {
     const profile = this.globalData.userProfile || {}
-    const isLoggedIn = Boolean(this.globalData.loginCode)
+    const isLoggedIn = Boolean(this.globalData.token)
     const visibleProfile = isLoggedIn ? profile : {}
     const hasProfile = Boolean(visibleProfile.nickname || visibleProfile.avatarUrl)
     const regionParts = [
@@ -292,9 +409,8 @@ App({
       visibleProfile.city
     ].filter(Boolean)
     const profileSourceMap = {
-      "quick-authorize": "来自首页授权",
-      "wechat-authorized": "来自微信已授权信息",
-      manual: "来自个人中心手动填写"
+      manual: "来自个人中心手动填写",
+      "wechat-authorized": "来自微信授权信息"
     }
     const selectedGenderCode = isLoggedIn
       ? genderValueToCode(visibleProfile.gender)
@@ -305,16 +421,23 @@ App({
       hasProfile,
       displayName: this.getDisplayName(),
       avatarUrl: visibleProfile.avatarUrl || "",
-      loginStatus: isLoggedIn ? "已获取登录 code" : "未登录",
+      loginStatus: isLoggedIn ? "已登录" : "未登录",
       loginAtDisplay: isLoggedIn ? this.globalData.loginAt || "已登录" : "等待用户确认登录",
-      loginCodePreview: isLoggedIn ? this.globalData.loginCodePreview || "未获取" : "未获取",
+      loginCodePreview: isLoggedIn ? this.globalData.loginCodePreview || "已换取登录态" : "未获取",
       profileStatus: hasProfile ? "已完成" : "未授权",
       profileSource: profileSourceMap[visibleProfile.source] || "可在个人中心手动补充",
-      profileDetail: hasProfile ? "可继续在个人中心重试授权或手动修改" : "登录后可在个人中心编辑资料",
+      profileDetail: hasProfile ? "可继续在个人中心修改资料" : "登录后可在个人中心编辑资料",
       regionText: regionParts.length ? regionParts.join(" / ") : "未获取",
       updatedAtDisplay: visibleProfile.updatedAt || "未更新",
       selectedGenderCode,
       selectedGenderLabel: genderCodeToLabel(selectedGenderCode)
     }
+  },
+
+  showRequestError(err) {
+    wx.showToast({
+      title: getErrorMessage(err),
+      icon: "none"
+    })
   }
 })

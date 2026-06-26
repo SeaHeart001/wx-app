@@ -29,7 +29,6 @@
   "compileType": "miniprogram",
   "libVersion": "latest",
   "appid": "wx0af44a8b43a311dd",
-  "appsecret": "900e6dd05502b2d6394e2e23d53fc51e",
   "projectname": "wx-app-personal-test",
   "miniprogramRoot": "./",
   "condition": {},

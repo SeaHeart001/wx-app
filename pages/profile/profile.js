@@ -15,7 +15,7 @@ function formatDisplayId(displayId) {
     return displayId
   }
 
-  return `${displayId.slice(0, 3)}xxxx${displayId.slice(-4)}`
+  return `${displayId.slice(0, 3)}****${displayId.slice(-4)}`
 }
 
 function genderCodeToValue(code) {
@@ -130,13 +130,15 @@ Page({
       nickname: nickname || currentProfile.nickname || "",
       avatarUrl,
       gender
+    }).then(() => {
+      this.syncView()
+    }).catch((err) => {
+      app.showRequestError(err)
     })
-
-    this.syncView()
   },
 
   openEditor() {
-    if (!app.globalData.loginCode) {
+    if (!app.globalData.token) {
       this.setData({
         showLoginPrompt: true
       })
@@ -148,7 +150,7 @@ Page({
 
   openEditorPanel() {
     app.ensureLogin(() => {
-      if (!app.globalData.loginCode) {
+      if (!app.globalData.token) {
         this.setData({
           showLoginPrompt: true,
           editorVisible: false,
@@ -171,6 +173,8 @@ Page({
       })
 
       this.syncView()
+    }, (err) => {
+      app.showRequestError(err)
     })
   },
 
@@ -185,6 +189,8 @@ Page({
         title: "登录成功",
         icon: "success"
       })
+    }, (err) => {
+      app.showRequestError(err)
     })
   },
 

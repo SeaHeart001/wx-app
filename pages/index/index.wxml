@@ -25,7 +25,7 @@
   <auth-modal
     visible="{{showLoginPrompt}}"
     title="授权登录"
-    message="点击确认后获取本次小程序登录 code，用于后端换取登录态。未点击前不会自动登录。"
+    message="点击确认后通过微信登录凭证换取 openid，并建立后端登录态。未点击前不会自动登录。"
     confirm-text="确认登录"
     cancel-text="稍后再说"
     bind:confirm="handleLoginAuthorize"

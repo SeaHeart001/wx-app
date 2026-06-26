@@ -9,7 +9,7 @@ function formatDisplayId(displayId) {
     return displayId
   }
 
-  return `${displayId.slice(0, 3)}xxxx${displayId.slice(-4)}`
+  return `${displayId.slice(0, 3)}****${displayId.slice(-4)}`
 }
 
 Page({
@@ -30,7 +30,7 @@ Page({
     this.setupInitialLayout()
     this.syncView()
     this.setData({
-      showLoginPrompt: !app.globalData.loginCode
+      showLoginPrompt: !app.globalData.token
     })
   },
 
@@ -41,7 +41,7 @@ Page({
   syncView() {
     const nextData = {
       ...app.getProfileViewModel(),
-      memberIdText: app.globalData.loginCode ? formatDisplayId(app.getDisplayId()) : "未登录"
+      memberIdText: app.globalData.token ? formatDisplayId(app.getDisplayId()) : "未登录"
     }
 
     if (
@@ -91,6 +91,8 @@ Page({
         title: "登录成功",
         icon: "success"
       })
+    }, (err) => {
+      app.showRequestError(err)
     })
   },
 
