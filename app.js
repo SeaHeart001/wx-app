@@ -114,7 +114,13 @@ function getErrorMessage(err) {
     return "请求失败"
   }
 
-  return err.message || err.errMsg || "请求失败"
+  const message = err.message || err.errMsg || "请求失败"
+
+  if (message.indexOf("url not in domain list") > -1) {
+    return "请配置 request 合法域名"
+  }
+
+  return message
 }
 
 App({
@@ -140,6 +146,7 @@ App({
     loginCodePreview: "",
     loginAt: "",
     loginAtTimestamp: 0,
+    loadingCount: 0,
     navigationLayoutCache: {}
   },
 
@@ -189,6 +196,11 @@ App({
       headers.Authorization = `Bearer ${this.globalData.token}`
     }
 
+    const loadingTitle = options.loadingTitle === undefined ? "加载中" : options.loadingTitle
+    if (loadingTitle) {
+      this.showLoading(loadingTitle)
+    }
+
     return new Promise((resolve, reject) => {
       wx.request({
         url,
@@ -206,9 +218,29 @@ App({
 
           reject(new Error(data.message || `请求失败 ${res.statusCode}`))
         },
-        fail: reject
+        fail: reject,
+        complete: () => {
+          if (loadingTitle) {
+            this.hideLoading()
+          }
+        }
       })
     })
+  },
+
+  showLoading(title = "加载中") {
+    this.globalData.loadingCount += 1
+    wx.showLoading({
+      title,
+      mask: true
+    })
+  },
+
+  hideLoading() {
+    this.globalData.loadingCount = Math.max(this.globalData.loadingCount - 1, 0)
+    if (this.globalData.loadingCount === 0) {
+      wx.hideLoading()
+    }
   },
 
   saveSession(token, user) {
@@ -258,10 +290,13 @@ App({
       return
     }
 
+    this.showLoading("登录中")
+
     wx.login({
       timeout: 10000,
       success: (result) => {
         if (!result.code) {
+          this.hideLoading()
           this.clearLoginState()
           if (typeof fail === "function") {
             fail(new Error("未获取到微信登录 code"))
@@ -276,6 +311,7 @@ App({
 
         this.request({
           url: "/wxusers/login",
+          loadingTitle: "",
           data: {
             code: result.code
           }
@@ -285,14 +321,17 @@ App({
           if (typeof done === "function") {
             done(this.globalData.userProfile)
           }
+          this.hideLoading()
         }).catch((err) => {
           this.clearLoginState()
           if (typeof fail === "function") {
             fail(err)
           }
+          this.hideLoading()
         })
       },
       fail: (err) => {
+        this.hideLoading()
         this.clearLoginState()
         if (typeof fail === "function") {
           fail(err)
