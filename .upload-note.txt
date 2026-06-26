@@ -1,0 +1,2 @@
+Project configured for AppID wx0af44a8b43a311dd.
+Upload via WeChat DevTools is blocked until DevTools Security -> Service Port is enabled.

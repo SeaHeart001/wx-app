@@ -1,0 +1,61 @@
+<view wx:if="{{mounted}}" class="editor-root">
+  <view class="panel-backdrop {{active ? 'panel-backdrop-open' : ''}}" bindtap="handleClose"></view>
+
+  <view class="panel {{active ? 'panel-open' : ''}}">
+    <view class="panel-header">
+      <text class="panel-title">{{title}}</text>
+    </view>
+
+    <form class="panel-body" bindsubmit="handleSubmit">
+      <view class="avatar-block">
+        <button class="panel-avatar-button" open-type="chooseAvatar" bindchooseavatar="handleChooseAvatar">
+          <image wx:if="{{avatarUrl}}" class="panel-avatar" src="{{avatarUrl}}" mode="aspectFill" />
+          <view wx:else class="panel-avatar-placeholder"></view>
+        </button>
+        <text class="avatar-hint">点击更换头像</text>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">昵称</text>
+        <view class="field-input-wrap">
+          <input
+            class="field-input"
+            name="nickname"
+            type="nickname"
+            value="{{nickname}}"
+            placeholder="请输入昵称"
+            bindinput="handleNicknameInput"
+            bindblur="handleNicknameBlur"
+          />
+          <view class="field-action">
+            <view class="pencil-icon">
+              <view class="pencil-line"></view>
+              <view class="pencil-tip"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="field-block">
+        <text class="field-label">性别</text>
+        <view class="gender-row">
+          <view
+            wx:for="{{genderOptions}}"
+            wx:key="code"
+            class="gender-option {{genderCode === item.code ? 'gender-option-active' : ''}}"
+            data-gender-code="{{item.code}}"
+            bindtap="handleSelectGender"
+          >
+            <text class="gender-option-text">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+    </form>
+
+    <view class="panel-footer">
+      <button class="logout-button" bindtap="handleLogout">
+        <text class="logout-text">退出登录</text>
+      </button>
+    </view>
+  </view>
+</view>

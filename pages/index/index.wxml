@@ -1,0 +1,34 @@
+<view class="page">
+  <custom-nav
+    title="首页"
+    avatar-url="{{avatarUrl}}"
+    display-name="{{displayName}}"
+    is-logged-in="{{isLoggedIn}}"
+    height-offset="{{5}}"
+    bind:avatartap="handleTopAvatarTap"
+    bind:layout="handleNavLayout"
+  />
+
+  <view class="content" style="padding-top: {{contentTop}}px;">
+    <account-card
+      is-logged-in="{{isLoggedIn}}"
+      avatar-url="{{avatarUrl}}"
+      display-name="{{displayName}}"
+      login-status="{{loginStatus}}"
+      profile-status="{{profileStatus}}"
+      member-id-text="{{memberIdText}}"
+      updated-at-display="{{updatedAtDisplay}}"
+      bind:avatartap="handleTopAvatarTap"
+    />
+  </view>
+
+  <auth-modal
+    visible="{{showLoginPrompt}}"
+    title="授权登录"
+    message="点击确认后获取本次小程序登录 code，用于后端换取登录态。未点击前不会自动登录。"
+    confirm-text="确认登录"
+    cancel-text="稍后再说"
+    bind:confirm="handleLoginAuthorize"
+    bind:cancel="dismissLoginPrompt"
+  />
+</view>

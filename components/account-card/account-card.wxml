@@ -1,0 +1,39 @@
+<view class="top-card">
+  <view class="top-row">
+    <button class="top-avatar" bindtap="handleAvatarTap">
+      <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="avatar-placeholder">{{displayInitial}}</view>
+    </button>
+
+    <view class="top-meta">
+      <text wx:if="{{isLoggedIn}}" class="welcome">欢迎回来</text>
+      <text class="user-name {{isLoggedIn ? 'user-name-logged' : ''}}">{{displayName}}</text>
+    </view>
+  </view>
+
+  <view class="status-panel">
+    <view class="status-item">
+      <text class="status-label">登录状态</text>
+      <text class="status-value">{{loginStatus}}</text>
+    </view>
+    <view class="status-item">
+      <text class="status-label">资料状态</text>
+      <text class="status-value">{{profileStatus}}</text>
+    </view>
+  </view>
+
+  <view class="profile-card">
+    <view class="profile-line">
+      <text class="profile-label">账号 ID</text>
+      <text class="profile-value">{{memberIdText}}</text>
+    </view>
+    <view class="profile-line">
+      <text class="profile-label">昵称</text>
+      <text class="profile-value">{{displayName}}</text>
+    </view>
+    <view class="profile-line">
+      <text class="profile-label">更新时间</text>
+      <text class="profile-value">{{updatedAtDisplay}}</text>
+    </view>
+  </view>
+</view>

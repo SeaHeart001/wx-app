@@ -1,0 +1,13 @@
+{
+  "usingComponents": {
+    "auth-modal": "/components/auth-modal/auth-modal",
+    "account-card": "/components/account-card/account-card",
+    "custom-nav": "/components/custom-nav/custom-nav",
+    "profile-editor": "/components/profile-editor/profile-editor"
+  },
+  "navigationStyle": "custom",
+  "backgroundColor": "#F2F5FB",
+  "backgroundColorTop": "#F2F5FB",
+  "backgroundColorBottom": "#F2F5FB",
+  "backgroundTextStyle": "light"
+}

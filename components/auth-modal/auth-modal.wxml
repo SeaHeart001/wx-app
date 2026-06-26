@@ -1,0 +1,8 @@
+<view wx:if="{{visible}}" class="modal-mask">
+  <view class="modal">
+    <text class="modal-title">{{title}}</text>
+    <text class="modal-copy">{{message}}</text>
+    <button class="modal-primary" bindtap="handleConfirm">{{confirmText}}</button>
+    <button class="modal-secondary" bindtap="handleCancel">{{cancelText}}</button>
+  </view>
+</view>

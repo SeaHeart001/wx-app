@@ -1,0 +1,7 @@
+<view class="custom-nav" style="padding-top: {{navTop}}px; height: {{navTotalHeight}}px;">
+  <button wx:if="{{isLoggedIn}}" class="nav-avatar" style="top: {{avatarTop}}px;" bindtap="handleAvatarTap">
+    <image wx:if="{{avatarUrl}}" class="nav-avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+    <view wx:else class="nav-avatar-initial">{{displayInitial}}</view>
+  </button>
+  <text class="nav-title">{{title}}</text>
+</view>

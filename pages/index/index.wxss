@@ -1,0 +1,12 @@
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #f2f5fb;
+}
+
+.content {
+  box-sizing: border-box;
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+  padding-bottom: 150rpx;
+}
