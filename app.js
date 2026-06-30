@@ -2,7 +2,7 @@ const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
-const API_BASE_URL = "https://haoiwx.netlify.app/.netlify/functions"
+const API_BASE_URL = "http://localhost:8888/.netlify/functions"
 
 function pad(value) {
   return String(value).padStart(2, "0")

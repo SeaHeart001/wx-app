@@ -10,3 +10,283 @@
   padding-right: 32rpx;
   padding-bottom: 150rpx;
 }
+
+.bind-panel {
+  box-sizing: border-box;
+  min-height: 520rpx;
+  padding: 56rpx 32rpx 40rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 20rpx 44rpx rgba(30, 64, 175, 0.08);
+}
+
+.avatar-row {
+  min-height: 280rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-row.paired {
+  justify-content: space-between;
+}
+
+.person {
+  width: 210rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatar-shell {
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 50%;
+  padding: 8rpx;
+  box-sizing: border-box;
+  background: #dbeafe;
+}
+
+.avatar-shell.partner {
+  background: #dcfce7;
+}
+
+.avatar-image,
+.avatar-placeholder {
+  width: 152rpx;
+  height: 152rpx;
+  border-radius: 50%;
+}
+
+.avatar-image {
+  display: block;
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 58rpx;
+  font-weight: 700;
+}
+
+.partner .avatar-placeholder {
+  background: #15803d;
+}
+
+.person-name {
+  width: 100%;
+  margin-top: 18rpx;
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-mark {
+  flex: 1;
+  min-width: 120rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.link-line {
+  width: 44rpx;
+  height: 2rpx;
+  background: #93c5fd;
+}
+
+.link-dot {
+  width: 48rpx;
+  height: 48rpx;
+  margin: 0 8rpx;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 48rpx;
+  text-align: center;
+}
+
+.bind-button {
+  width: 100%;
+  height: 92rpx;
+  margin: 48rpx auto !important;
+  border-radius: 12rpx;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.account-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.account-modal {
+  width: 100%;
+  max-height: 78vh;
+  box-sizing: border-box;
+  padding: 30rpx 32rpx 48rpx;
+  border-radius: 22rpx 22rpx 0 0;
+  background: #ffffff;
+}
+
+.modal-head {
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  color: #0f172a;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  min-width: 56rpx;
+  flex: 0 0 56rpx;
+  padding: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+.search-row {
+  margin-top: 28rpx;
+  display: flex;
+  gap: 16rpx;
+}
+
+.search-input {
+  flex: 1;
+  height: 76rpx;
+  box-sizing: border-box;
+  padding: 0 24rpx;
+  border-radius: 12rpx;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 28rpx;
+}
+
+.search-button {
+  width: 132rpx;
+  height: 76rpx;
+  flex: 0 0 132rpx;
+  padding: 0;
+  border-radius: 12rpx;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.account-list {
+  height: 680rpx;
+  max-height: 52vh;
+  margin-top: 24rpx;
+}
+
+.account-item {
+  width: 100%;
+  min-height: 116rpx;
+  margin: 0 0 16rpx;
+  padding: 18rpx;
+  box-sizing: border-box;
+  border-radius: 12rpx;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.account-avatar,
+.account-avatar-image,
+.account-avatar-placeholder {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 50%;
+}
+
+.account-avatar {
+  flex: 0 0 76rpx;
+  overflow: hidden;
+  background: #dbeafe;
+}
+
+.account-avatar-image {
+  display: block;
+}
+
+.account-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.account-info {
+  min-width: 0;
+  margin-left: 18rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-name {
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 38rpx;
+}
+
+.account-openid {
+  max-width: 500rpx;
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-text {
+  padding: 72rpx 0;
+  color: #64748b;
+  font-size: 28rpx;
+  text-align: center;
+}

@@ -5,6 +5,22 @@ page {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+button {
+  margin: 0 !important;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: normal;
+  text-align: inherit;
+}
+
+button::after {
+  border: none;
+}
+
 .button-hover {
   opacity: 0.86;
 }

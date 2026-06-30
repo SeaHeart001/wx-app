@@ -10,16 +10,78 @@
   />
 
   <view class="content" style="padding-top: {{contentTop}}px;">
-    <account-card
-      is-logged-in="{{isLoggedIn}}"
-      avatar-url="{{avatarUrl}}"
-      display-name="{{displayName}}"
-      login-status="{{loginStatus}}"
-      profile-status="{{profileStatus}}"
-      member-id-text="{{memberIdText}}"
-      updated-at-display="{{updatedAtDisplay}}"
-      bind:avatartap="handleTopAvatarTap"
-    />
+    <view class="bind-panel">
+      <view class="{{avatarRowClass}}">
+        <view class="person">
+          <view class="avatar-shell self">
+            <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
+            <view wx:else class="avatar-placeholder">{{selfInitial}}</view>
+          </view>
+          <text class="person-name">{{displayName}}</text>
+        </view>
+
+        <view wx:if="{{hasPartner}}" class="link-mark">
+          <view class="link-line"></view>
+          <text class="link-dot">+</text>
+          <view class="link-line"></view>
+        </view>
+
+        <view wx:if="{{hasPartner}}" class="person">
+          <view class="avatar-shell partner">
+            <image wx:if="{{partner.avatarUrl}}" class="avatar-image" src="{{partner.avatarUrl}}" mode="aspectFill" />
+            <view wx:else class="avatar-placeholder">{{partner.initial}}</view>
+          </view>
+          <text class="person-name">{{partner.nickname}}</text>
+        </view>
+      </view>
+
+      <button class="bind-button" bindtap="openAccountModal">
+        {{bindButtonText}}
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{accountModalVisible}}" class="account-mask">
+    <view class="account-modal">
+      <view class="modal-head">
+        <text class="modal-title">选择账号</text>
+        <button class="modal-close" bindtap="closeAccountModal">×</button>
+      </view>
+
+      <view class="search-row">
+        <input
+          class="search-input"
+          placeholder="昵称或 OpenID"
+          value="{{accountKeyword}}"
+          bindinput="onAccountKeywordInput"
+          confirm-type="search"
+          bindconfirm="searchAccounts"
+        />
+        <button class="search-button" bindtap="searchAccounts">查询</button>
+      </view>
+
+      <scroll-view class="account-list" scroll-y>
+        <view wx:if="{{accountLoading}}" class="empty-text">查询中</view>
+        <view wx:elif="{{!hasAccounts}}" class="empty-text">暂无可绑定账号</view>
+
+        <button
+          wx:for="{{accounts}}"
+          wx:key="id"
+          class="account-item"
+          data-user-id="{{item.id}}"
+          bindtap="bindAccount"
+        >
+          <view class="account-avatar">
+            <image wx:if="{{item.avatarUrl}}" class="account-avatar-image" src="{{item.avatarUrl}}" mode="aspectFill" />
+            <view wx:else class="account-avatar-placeholder">{{item.initial}}</view>
+          </view>
+          <view class="account-info">
+            <text class="account-name">{{item.nickname}}</text>
+            <text class="account-openid">{{item.openid}}</text>
+          </view>
+        </button>
+      </scroll-view>
+    </view>
   </view>
 
   <auth-modal

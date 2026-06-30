@@ -1,7 +1,6 @@
 {
   "usingComponents": {
     "auth-modal": "/components/auth-modal/auth-modal",
-    "account-card": "/components/account-card/account-card",
     "custom-nav": "/components/custom-nav/custom-nav"
   },
   "navigationStyle": "custom",
