@@ -220,13 +220,43 @@ Page({
 
   onChooseAvatar(event) {
     const avatarUrl = event.detail.avatarUrl
+    const previousAvatarUrl = this.data.draftAvatarUrl || this.data.avatarUrl || ""
+
+    if (!avatarUrl) {
+      return
+    }
 
     this.setData({
       avatarUrl,
       draftAvatarUrl: avatarUrl
     })
 
-    this.persistDraftProfile()
+    app.uploadFile(avatarUrl, {
+      directory: "profiles",
+      name: "profile",
+      nameMode: "overwrite",
+      loadingTitle: "上传图片"
+    }).then((data) => {
+      const uploadedAvatarUrl = data.url || ""
+
+      if (!uploadedAvatarUrl) {
+        throw new Error("图片上传失败")
+      }
+
+      this.setData({
+        avatarUrl: uploadedAvatarUrl,
+        draftAvatarUrl: uploadedAvatarUrl
+      })
+
+      this.persistDraftProfile()
+      this.syncView()
+    }).catch((err) => {
+      this.setData({
+        avatarUrl: previousAvatarUrl,
+        draftAvatarUrl: previousAvatarUrl
+      })
+      app.showRequestError(err)
+    })
   },
 
   onNicknameInput(event) {

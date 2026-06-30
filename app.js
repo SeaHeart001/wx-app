@@ -123,6 +123,31 @@ function getErrorMessage(err) {
   return message
 }
 
+function getFileNameFromPath(filePath) {
+  const cleanPath = String(filePath || "").split("?")[0]
+  const name = cleanPath.split("/").pop() || `file-${Date.now()}.jpg`
+
+  if (name.indexOf(".") > -1) {
+    return name
+  }
+
+  return `${name}.jpg`
+}
+
+function getContentType(fileName) {
+  const ext = String(fileName || "").split(".").pop().toLowerCase()
+
+  if (ext === "png") {
+    return "image/png"
+  }
+
+  if (ext === "webp") {
+    return "image/webp"
+  }
+
+  return "image/jpeg"
+}
+
 App({
   globalData: {
     createdAt: "2026-06-17",
@@ -406,6 +431,39 @@ App({
       }
     }).then((data) => {
       return this.saveSession(null, data.user)
+    })
+  },
+
+  uploadFile(filePath, options = {}) {
+    if (!filePath) {
+      return Promise.reject(new Error("请选择文件"))
+    }
+
+    return new Promise((resolve, reject) => {
+      wx.getFileSystemManager().readFile({
+        filePath,
+        encoding: "base64",
+        success: (res) => {
+          const fileName = getFileNameFromPath(filePath)
+
+          this.request({
+            url: "/files/upload",
+            data: {
+              fileName,
+              contentType: getContentType(fileName),
+              base64: res.data,
+              directory: options.directory || "files",
+              name: options.name || "",
+              nameMode: options.nameMode || "timestamp"
+            },
+            loadingTitle: options.loadingTitle || "上传中",
+            timeout: 30000
+          }).then((data) => {
+            resolve(data)
+          }).catch(reject)
+        },
+        fail: reject
+      })
     })
   },
 
