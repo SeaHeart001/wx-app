@@ -16,6 +16,20 @@ function normalizeAccount(account = {}) {
   }
 }
 
+function buildRelationState(relation) {
+  const partner = relation && relation.partner
+    ? normalizeAccount(relation.partner)
+    : null
+
+  return {
+    relation: relation || null,
+    partner,
+    hasPartner: Boolean(partner),
+    avatarRowClass: partner ? "avatar-row paired" : "avatar-row",
+    bindButtonText: partner ? "更换绑定账号" : "查询已注册账号"
+  }
+}
+
 Page({
   data: {
     contentTop: 105,
@@ -39,6 +53,7 @@ Page({
   onLoad() {
     this.setupInitialLayout()
     this.syncView()
+    this.realtimeOff = app.onRealtimeMessage(this.handleRealtimeMessage.bind(this))
     this.setData({
       showLoginPrompt: !app.globalData.token
     })
@@ -52,6 +67,24 @@ Page({
     this.syncView()
 
     if (app.globalData.token) {
+      app.connectRealtime()
+      this.loadRelation()
+    }
+  },
+
+  onUnload() {
+    if (this.realtimeOff) {
+      this.realtimeOff()
+      this.realtimeOff = null
+    }
+  },
+
+  handleRealtimeMessage(event) {
+    if (!event || !event.type) {
+      return
+    }
+
+    if (event.type === "relation_changed" || event.type === "binding_accepted") {
       this.loadRelation()
     }
   },
@@ -146,18 +179,7 @@ Page({
       url: "/wxusers/relation",
       loadingTitle: ""
     }).then((data) => {
-      const relation = data.relation || null
-      const partner = relation && relation.partner
-        ? normalizeAccount(relation.partner)
-        : null
-
-      this.setData({
-        relation,
-        partner,
-        hasPartner: Boolean(partner),
-        avatarRowClass: partner ? "avatar-row paired" : "avatar-row",
-        bindButtonText: partner ? "更换绑定账号" : "查询已注册账号"
-      })
+      this.setData(buildRelationState(data.relation || null))
     }).catch((err) => {
       app.showRequestError(err)
     })
@@ -227,29 +249,25 @@ Page({
     }
 
     app.request({
-      url: "/wxusers/bind",
+      url: "/wxusers/bind-request",
       data: {
         userId
       },
-      loadingTitle: "绑定中"
+      loadingTitle: "发送中"
     }).then((data) => {
-      const relation = data.relation || null
-      const partner = relation && relation.partner
-        ? normalizeAccount(relation.partner)
-        : null
+      const nextState = data.relation
+        ? buildRelationState(data.relation)
+        : {}
 
       this.setData({
-        relation,
-        partner,
-        hasPartner: Boolean(partner),
-        avatarRowClass: partner ? "avatar-row paired" : "avatar-row",
-        bindButtonText: partner ? "更换绑定账号" : "查询已注册账号",
+        ...nextState,
         accountModalVisible: false
       })
 
-      wx.showToast({
-        title: "已绑定",
-        icon: "success"
+      wx.showModal({
+        title: data.relation ? "双方已绑定" : "申请已发送",
+        content: data.message || "已发送绑定申请，等待对方确认",
+        showCancel: false
       })
     }).catch((err) => {
       app.showRequestError(err)

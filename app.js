@@ -2,7 +2,9 @@ const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
-const API_BASE_URL = "http://localhost:8888/.netlify/functions"
+const SITE_BASE_URL = "https://haoiwx.netlify.app"
+const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
+const SSE_URL = `${SITE_BASE_URL}/.netlify/edge-functions/sse`
 
 function pad(value) {
   return String(value).padStart(2, "0")
@@ -148,6 +150,71 @@ function getContentType(fileName) {
   return "image/jpeg"
 }
 
+function decodeChunk(buffer) {
+  if (!buffer) {
+    return ""
+  }
+
+  if (typeof TextDecoder !== "undefined") {
+    return new TextDecoder("utf-8").decode(new Uint8Array(buffer))
+  }
+
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index])
+  }
+
+  try {
+    return decodeURIComponent(escape(binary))
+  } catch (err) {
+    return binary
+  }
+}
+
+function parseSseBlock(block) {
+  const lines = String(block || "").split(/\r?\n/)
+  let eventName = "message"
+  const dataLines = []
+
+  lines.forEach((line) => {
+    if (!line || line.indexOf(":") === -1) {
+      return
+    }
+
+    const index = line.indexOf(":")
+    const field = line.slice(0, index).trim()
+    const value = line.slice(index + 1).replace(/^ /, "")
+
+    if (field === "event") {
+      eventName = value || "message"
+    }
+
+    if (field === "data") {
+      dataLines.push(value)
+    }
+  })
+
+  if (!dataLines.length) {
+    return null
+  }
+
+  try {
+    return {
+      eventName,
+      data: JSON.parse(dataLines.join("\n"))
+    }
+  } catch (err) {
+    return null
+  }
+}
+
+function getRealtimeUserName(event) {
+  const from = event && event.from ? event.from : {}
+  return from.nickname || from.openid || "对方"
+}
+
 App({
   globalData: {
     createdAt: "2026-06-17",
@@ -172,12 +239,30 @@ App({
     loginAt: "",
     loginAtTimestamp: 0,
     loadingCount: 0,
-    navigationLayoutCache: {}
+    navigationLayoutCache: {},
+    sseTask: null,
+    sseBuffer: "",
+    sseConnected: false,
+    sseForeground: true,
+    sseReconnectTimer: null,
+    realtimeListeners: [],
+    bindingPrompting: {},
+    realtimeHandledIds: {}
   },
 
   onLaunch() {
     this.restoreSession()
     this.restoreDisplayId()
+  },
+
+  onShow() {
+    this.globalData.sseForeground = true
+    this.connectRealtime()
+  },
+
+  onHide() {
+    this.globalData.sseForeground = false
+    this.closeRealtime()
   },
 
   restoreSession() {
@@ -282,6 +367,7 @@ App({
     }
 
     wx.setStorageSync(STORAGE_KEY, this.globalData.userProfile)
+    this.connectRealtime()
     return this.globalData.userProfile
   },
 
@@ -298,6 +384,7 @@ App({
   },
 
   clearUserProfile() {
+    this.closeRealtime()
     this.globalData.token = ""
     this.globalData.loginCode = ""
     this.globalData.loginCodePreview = ""
@@ -366,6 +453,7 @@ App({
   },
 
   clearLoginState() {
+    this.closeRealtime()
     this.globalData.token = ""
     this.globalData.loginCode = ""
     this.globalData.loginCodePreview = ""
@@ -529,6 +617,262 @@ App({
       selectedGenderCode,
       selectedGenderLabel: genderCodeToLabel(selectedGenderCode)
     }
+  },
+
+  onRealtimeMessage(listener) {
+    if (typeof listener !== "function") {
+      return function () {}
+    }
+
+    this.globalData.realtimeListeners.push(listener)
+
+    return () => {
+      this.globalData.realtimeListeners = this.globalData.realtimeListeners.filter(item => item !== listener)
+    }
+  },
+
+  emitRealtimeMessage(event) {
+    this.globalData.realtimeListeners.forEach((listener) => {
+      try {
+        listener(event)
+      } catch (err) {
+        console.warn("realtime listener failed", err)
+      }
+    })
+  },
+
+  connectRealtime() {
+    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseTask) {
+      return
+    }
+
+    if (this.globalData.sseReconnectTimer) {
+      clearTimeout(this.globalData.sseReconnectTimer)
+      this.globalData.sseReconnectTimer = null
+    }
+
+    const task = wx.request({
+      url: SSE_URL,
+      method: "GET",
+      enableChunked: true,
+      timeout: 600000,
+      header: {
+        Accept: "text/event-stream",
+        Authorization: `Bearer ${this.globalData.token}`
+      },
+      success: () => {},
+      fail: () => {},
+      complete: () => {
+        if (this.globalData.sseTask === task) {
+          this.globalData.sseTask = null
+          this.globalData.sseConnected = false
+          this.scheduleRealtimeReconnect()
+        }
+      }
+    })
+
+    this.globalData.sseTask = task
+    this.globalData.sseBuffer = ""
+
+    if (task && typeof task.onChunkReceived === "function") {
+      task.onChunkReceived((res) => {
+        this.handleRealtimeChunk(res.data)
+      })
+    } else {
+      console.warn("当前微信基础库不支持 request chunked 接收，实时消息无法即时到达")
+    }
+  },
+
+  closeRealtime() {
+    if (this.globalData.sseReconnectTimer) {
+      clearTimeout(this.globalData.sseReconnectTimer)
+      this.globalData.sseReconnectTimer = null
+    }
+
+    const task = this.globalData.sseTask
+    this.globalData.sseTask = null
+    this.globalData.sseConnected = false
+    this.globalData.sseBuffer = ""
+
+    if (task && typeof task.abort === "function") {
+      task.abort()
+    }
+  },
+
+  scheduleRealtimeReconnect() {
+    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseReconnectTimer) {
+      return
+    }
+
+    this.globalData.sseReconnectTimer = setTimeout(() => {
+      this.globalData.sseReconnectTimer = null
+      this.connectRealtime()
+    }, 3000)
+  },
+
+  handleRealtimeChunk(buffer) {
+    this.globalData.sseBuffer += decodeChunk(buffer)
+    this.globalData.sseBuffer = this.globalData.sseBuffer.replace(/\r\n/g, "\n")
+
+    let splitIndex = this.globalData.sseBuffer.indexOf("\n\n")
+    while (splitIndex > -1) {
+      const block = this.globalData.sseBuffer.slice(0, splitIndex)
+      this.globalData.sseBuffer = this.globalData.sseBuffer.slice(splitIndex + 2)
+      this.handleRealtimeBlock(block)
+      splitIndex = this.globalData.sseBuffer.indexOf("\n\n")
+    }
+  },
+
+  handleRealtimeBlock(block) {
+    const event = parseSseBlock(block)
+    if (!event) {
+      return
+    }
+
+    console.info("SSE event received", event.eventName, Date.now())
+
+    if (event.eventName === "ready") {
+      this.globalData.sseConnected = true
+      return
+    }
+
+    if (event.eventName === "heartbeat") {
+      return
+    }
+
+    if (event.eventName === "message") {
+      this.handleRealtimeMessage(event.data)
+    }
+  },
+
+  handleRealtimeMessage(event) {
+    if (!event || !event.type) {
+      return
+    }
+
+    if (event.id && this.globalData.realtimeHandledIds[event.id]) {
+      return
+    }
+
+    if (event.id) {
+      this.globalData.realtimeHandledIds[event.id] = true
+    }
+
+    if (event.type === "binding_request") {
+      this.promptBindingRequest(event)
+      this.emitRealtimeMessage(event)
+      return
+    }
+
+    if (event.type === "binding_accepted") {
+      this.markMessageRead(event.id)
+      wx.showModal({
+        title: "绑定成功",
+        content: event.content || "对方已同意绑定账号",
+        showCancel: false
+      })
+      this.emitRealtimeMessage({
+        type: "relation_changed",
+        relation: event.relation || null
+      })
+      this.emitRealtimeMessage(event)
+      return
+    }
+
+    if (event.type === "binding_declined") {
+      this.markMessageRead(event.id)
+      wx.showToast({
+        title: event.content || "对方已拒绝绑定",
+        icon: "none"
+      })
+      this.emitRealtimeMessage(event)
+      return
+    }
+
+    if (event.type === "relation_changed") {
+      this.emitRealtimeMessage(event)
+    }
+  },
+
+  promptBindingRequest(event) {
+    if (!event.id || this.globalData.bindingPrompting[event.id]) {
+      return
+    }
+
+    this.globalData.bindingPrompting[event.id] = true
+
+    wx.showModal({
+      title: "绑定申请",
+      content: `${getRealtimeUserName(event)} 请求与你绑定账号`,
+      confirmText: "同意",
+      cancelText: "拒绝",
+      success: (res) => {
+        if (res.confirm) {
+          this.acceptBindingRequest(event)
+          return
+        }
+
+        this.declineBindingRequest(event)
+      },
+      complete: () => {
+        delete this.globalData.bindingPrompting[event.id]
+      }
+    })
+  },
+
+  acceptBindingRequest(event) {
+    this.request({
+      url: "/wxusers/message-action",
+      data: {
+        messageId: event.id,
+        action: "accept"
+      },
+      loadingTitle: "确认中"
+    }).then((data) => {
+      wx.showToast({
+        title: "已绑定",
+        icon: "success"
+      })
+      this.emitRealtimeMessage({
+        type: "relation_changed",
+        relation: data.relation || null
+      })
+    }).catch((err) => {
+      this.showRequestError(err)
+    })
+  },
+
+  declineBindingRequest(event) {
+    this.request({
+      url: "/wxusers/message-action",
+      data: {
+        messageId: event.id,
+        action: "decline"
+      },
+      loadingTitle: "处理中"
+    }).then(() => {
+      wx.showToast({
+        title: "已拒绝",
+        icon: "none"
+      })
+    }).catch((err) => {
+      this.showRequestError(err)
+    })
+  },
+
+  markMessageRead(messageId) {
+    if (!messageId) {
+      return
+    }
+
+    this.request({
+      url: "/wxusers/message-action",
+      data: {
+        messageId,
+        action: "read"
+      },
+      loadingTitle: ""
+    }).catch(() => {})
   },
 
   showRequestError(err) {
