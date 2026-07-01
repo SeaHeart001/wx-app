@@ -210,11 +210,6 @@ function parseSseBlock(block) {
   }
 }
 
-function getRealtimeUserName(event) {
-  const from = event && event.from ? event.from : {}
-  return from.nickname || from.openid || "对方"
-}
-
 App({
   globalData: {
     createdAt: "2026-06-17",
@@ -246,8 +241,8 @@ App({
     sseForeground: true,
     sseReconnectTimer: null,
     realtimeListeners: [],
-    bindingPrompting: {},
-    realtimeHandledIds: {}
+    realtimeHandledIds: {},
+    realtimePromptingIds: {}
   },
 
   onLaunch() {
@@ -368,6 +363,7 @@ App({
 
     wx.setStorageSync(STORAGE_KEY, this.globalData.userProfile)
     this.connectRealtime()
+    this.fetchPendingMessages()
     return this.globalData.userProfile
   },
 
@@ -733,6 +729,7 @@ App({
 
     if (event.eventName === "ready") {
       this.globalData.sseConnected = true
+      this.fetchPendingMessages()
       return
     }
 
@@ -758,106 +755,24 @@ App({
       this.globalData.realtimeHandledIds[event.id] = true
     }
 
-    if (event.type === "binding_request") {
-      this.promptBindingRequest(event)
-      this.emitRealtimeMessage(event)
-      return
-    }
-
-    if (event.type === "binding_accepted") {
-      this.markMessageRead(event.id)
-      wx.showModal({
-        title: "绑定成功",
-        content: event.content || "对方已同意绑定账号",
-        showCancel: false
-      })
-      this.emitRealtimeMessage({
-        type: "relation_changed",
-        relation: event.relation || null
-      })
-      this.emitRealtimeMessage(event)
-      return
-    }
-
-    if (event.type === "binding_declined") {
-      this.markMessageRead(event.id)
-      wx.showToast({
-        title: event.content || "对方已拒绝绑定",
-        icon: "none"
-      })
-      this.emitRealtimeMessage(event)
-      return
-    }
-
-    if (event.type === "relation_changed") {
-      this.emitRealtimeMessage(event)
-    }
+    this.emitRealtimeMessage(event)
   },
 
-  promptBindingRequest(event) {
-    if (!event.id || this.globalData.bindingPrompting[event.id]) {
-      return
+  fetchPendingMessages() {
+    if (!this.globalData.token) {
+      return Promise.resolve([])
     }
 
-    this.globalData.bindingPrompting[event.id] = true
-
-    wx.showModal({
-      title: "绑定申请",
-      content: `${getRealtimeUserName(event)} 请求与你绑定账号`,
-      confirmText: "同意",
-      cancelText: "拒绝",
-      success: (res) => {
-        if (res.confirm) {
-          this.acceptBindingRequest(event)
-          return
-        }
-
-        this.declineBindingRequest(event)
-      },
-      complete: () => {
-        delete this.globalData.bindingPrompting[event.id]
-      }
-    })
-  },
-
-  acceptBindingRequest(event) {
-    this.request({
-      url: "/wxusers/message-action",
-      data: {
-        messageId: event.id,
-        action: "accept"
-      },
-      loadingTitle: "确认中"
+    return this.request({
+      url: "/messages/events",
+      loadingTitle: ""
     }).then((data) => {
-      wx.showToast({
-        title: "已绑定",
-        icon: "success"
+      const events = Array.isArray(data.events) ? data.events : []
+      events.forEach((event) => {
+        this.handleRealtimeMessage(event)
       })
-      this.emitRealtimeMessage({
-        type: "relation_changed",
-        relation: data.relation || null
-      })
-    }).catch((err) => {
-      this.showRequestError(err)
-    })
-  },
-
-  declineBindingRequest(event) {
-    this.request({
-      url: "/wxusers/message-action",
-      data: {
-        messageId: event.id,
-        action: "decline"
-      },
-      loadingTitle: "处理中"
-    }).then(() => {
-      wx.showToast({
-        title: "已拒绝",
-        icon: "none"
-      })
-    }).catch((err) => {
-      this.showRequestError(err)
-    })
+      return events
+    }).catch(() => [])
   },
 
   markMessageRead(messageId) {
@@ -866,13 +781,28 @@ App({
     }
 
     this.request({
-      url: "/wxusers/message-action",
+      url: "/messages/action",
       data: {
         messageId,
         action: "read"
       },
       loadingTitle: ""
     }).catch(() => {})
+  },
+
+  handleMessageAction(messageId, action) {
+    if (!messageId || !action) {
+      return Promise.reject(new Error("消息参数无效"))
+    }
+
+    return this.request({
+      url: "/messages/action",
+      data: {
+        messageId,
+        action
+      },
+      loadingTitle: action === "read" ? "" : "处理中"
+    })
   },
 
   showRequestError(err) {

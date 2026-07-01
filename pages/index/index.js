@@ -249,7 +249,7 @@ Page({
     }
 
     app.request({
-      url: "/wxusers/bind-request",
+      url: "/relations/bind-request",
       data: {
         userId
       },
