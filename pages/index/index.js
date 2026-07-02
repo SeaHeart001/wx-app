@@ -176,7 +176,7 @@ Page({
     }
 
     app.request({
-      url: "/wxusers/relation",
+      url: "/users/relation",
       loadingTitle: ""
     }).then((data) => {
       this.setData(buildRelationState(data.relation || null))
@@ -223,7 +223,7 @@ Page({
     })
 
     app.request({
-      url: "/wxusers/accounts",
+      url: "/users/accounts",
       data: {
         keyword: this.data.accountKeyword
       },

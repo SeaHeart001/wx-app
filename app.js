@@ -418,7 +418,7 @@ App({
         this.globalData.loginAt = formatTime(new Date())
 
         this.request({
-          url: "/wxusers/login",
+          url: "/users/login",
           loadingTitle: "",
           data: {
             code: result.code
@@ -503,7 +503,7 @@ App({
     }
 
     return this.request({
-      url: "/wxusers/profile",
+      url: "/users/profile",
       data: {
         nickname: localProfile.nickname,
         avatarUrl: localProfile.avatarUrl,
