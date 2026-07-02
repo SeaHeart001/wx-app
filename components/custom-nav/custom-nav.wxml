@@ -5,3 +5,4 @@
   </button>
   <text class="nav-title">{{title}}</text>
 </view>
+<message-host />
