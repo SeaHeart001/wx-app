@@ -53,6 +53,9 @@
     </form>
 
     <view class="panel-footer">
+      <button class="notify-button" bindtap="handleSubscribe">
+        <text class="notify-text">消息提醒</text>
+      </button>
       <button class="logout-button" bindtap="handleLogout">
         <text class="logout-text">退出登录</text>
       </button>

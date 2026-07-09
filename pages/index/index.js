@@ -132,18 +132,22 @@ Page({
   },
 
   handleLoginAuthorize() {
-    app.ensureLogin(() => {
-      this.syncView()
-      this.setData({
-        showLoginPrompt: false
+    app.requestMessageSubscribe({
+      silent: true
+    }).then(() => {
+      app.ensureLogin(() => {
+        this.syncView()
+        this.setData({
+          showLoginPrompt: false
+        })
+        this.loadRelation()
+        wx.showToast({
+          title: "登录成功",
+          icon: "success"
+        })
+      }, (err) => {
+        app.showRequestError(err)
       })
-      this.loadRelation()
-      wx.showToast({
-        title: "登录成功",
-        icon: "success"
-      })
-    }, (err) => {
-      app.showRequestError(err)
     })
   },
 

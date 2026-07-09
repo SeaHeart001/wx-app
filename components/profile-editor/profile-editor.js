@@ -126,6 +126,10 @@ Component({
       })
     },
 
+    handleSubscribe() {
+      this.triggerEvent("subscribe")
+    },
+
     handleLogout() {
       this.triggerEvent("logout")
     }

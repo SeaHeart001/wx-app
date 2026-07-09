@@ -179,19 +179,27 @@ Page({
   },
 
   handleLoginAuthorize() {
-    app.ensureLogin(() => {
-      this.setData({
-        showLoginPrompt: false
+    app.requestMessageSubscribe({
+      silent: true
+    }).then(() => {
+      app.ensureLogin(() => {
+        this.setData({
+          showLoginPrompt: false
+        })
+        this.syncView()
+        this.openEditorPanel()
+        wx.showToast({
+          title: "登录成功",
+          icon: "success"
+        })
+      }, (err) => {
+        app.showRequestError(err)
       })
-      this.syncView()
-      this.openEditorPanel()
-      wx.showToast({
-        title: "登录成功",
-        icon: "success"
-      })
-    }, (err) => {
-      app.showRequestError(err)
     })
+  },
+
+  handleSubscribeMessages() {
+    app.requestMessageSubscribe()
   },
 
   dismissLoginPrompt() {

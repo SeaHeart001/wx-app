@@ -1,6 +1,7 @@
 const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
+const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
 const SITE_BASE_URL = "https://haoiwx.netlify.app"
 const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
@@ -328,6 +329,49 @@ App({
           if (loadingTitle) {
             this.hideLoading()
           }
+        }
+      })
+    })
+  },
+
+  requestMessageSubscribe(options = {}) {
+    const silent = Boolean(options.silent)
+
+    if (!wx.requestSubscribeMessage) {
+      if (!silent) {
+        wx.showToast({
+          title: "当前微信版本不支持订阅消息",
+          icon: "none"
+        })
+      }
+      return Promise.resolve(false)
+    }
+
+    return new Promise((resolve) => {
+      wx.requestSubscribeMessage({
+        tmplIds: [SUBSCRIBE_MESSAGE_TEMPLATE_ID],
+        success: (res) => {
+          const state = res[SUBSCRIBE_MESSAGE_TEMPLATE_ID]
+          const accepted = state === "accept"
+
+          if (!silent) {
+            wx.showToast({
+              title: accepted ? "已开启消息提醒" : "未开启消息提醒",
+              icon: "none"
+            })
+          }
+
+          resolve(accepted)
+        },
+        fail: (err) => {
+          if (!silent) {
+            wx.showToast({
+              title: getErrorMessage(err),
+              icon: "none"
+            })
+          }
+
+          resolve(false)
         }
       })
     })

@@ -44,6 +44,7 @@
     bind:nicknameblur="onNicknameBlur"
     bind:genderchange="selectGender"
     bind:submit="handleManualSubmit"
+    bind:subscribe="handleSubscribeMessages"
     bind:logout="logoutProfile"
   />
 </view>
