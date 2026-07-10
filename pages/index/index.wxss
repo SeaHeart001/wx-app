@@ -51,6 +51,14 @@
   background: #dcfce7;
 }
 
+.avatar-shell.tappable {
+  box-shadow: 0 10rpx 24rpx rgba(21, 128, 61, 0.16);
+}
+
+.avatar-shell.tappable:active {
+  transform: scale(0.96);
+}
+
 .avatar-image,
 .avatar-placeholder {
   width: 152rpx;

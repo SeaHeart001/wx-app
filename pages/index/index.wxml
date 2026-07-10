@@ -26,8 +26,8 @@
           <view class="link-line"></view>
         </view>
 
-        <view wx:if="{{hasPartner}}" class="person">
-          <view class="avatar-shell partner">
+        <view wx:if="{{hasPartner}}" class="person partner-person">
+          <view class="avatar-shell partner tappable" bindtap="handlePartnerAvatarTap">
             <image wx:if="{{partner.avatarUrl}}" class="avatar-image" src="{{partner.avatarUrl}}" mode="aspectFill" />
             <view wx:else class="avatar-placeholder">{{partner.initial}}</view>
           </view>

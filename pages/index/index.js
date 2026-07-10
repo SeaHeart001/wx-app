@@ -1,4 +1,5 @@
 const app = getApp()
+const DEFAULT_RELATION_MESSAGE_CONTENT = "对方拍了拍你"
 
 function getInitial(name) {
   return name ? name.slice(0, 1) : "?"
@@ -224,6 +225,53 @@ Page({
       accountModalVisible: true
     })
     this.loadAccounts()
+  },
+
+  handlePartnerAvatarTap() {
+    if (!this.data.hasPartner || !this.data.partner) {
+      return
+    }
+
+    const partnerName = this.data.partner.nickname || "对方"
+    wx.showModal({
+      title: "发送提醒",
+      content: `向${partnerName}发送“${DEFAULT_RELATION_MESSAGE_CONTENT}”？`,
+      confirmText: "发送",
+      cancelText: "取消",
+      success: (res) => {
+        if (!res.confirm) {
+          return
+        }
+
+        this.sendRelationMessage(DEFAULT_RELATION_MESSAGE_CONTENT)
+      }
+    })
+  },
+
+  sendRelationMessage(content) {
+    if (!app.hasActiveSession()) {
+      this.openLoginPrompt()
+      return
+    }
+
+    app.request({
+      url: "/relations/message",
+      data: {
+        content
+      },
+      loadingTitle: "发送中"
+    }).then((data) => {
+      wx.showToast({
+        title: data.message || "已发送",
+        icon: "success"
+      })
+    }).catch((err) => {
+      this.syncView()
+      if (!app.hasActiveSession()) {
+        this.resetRelationState()
+      }
+      app.showRequestError(err)
+    })
   },
 
   closeAccountModal() {
