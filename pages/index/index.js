@@ -30,6 +30,17 @@ function buildRelationState(relation) {
   }
 }
 
+function buildLoggedOutState() {
+  return {
+    ...buildRelationState(null),
+    accountModalVisible: false,
+    accounts: [],
+    hasAccounts: false,
+    accountKeyword: "",
+    accountLoading: false
+  }
+}
+
 Page({
   data: {
     contentTop: 105,
@@ -55,20 +66,24 @@ Page({
     this.syncView()
     this.realtimeOff = app.onRealtimeMessage(this.handleRealtimeMessage.bind(this))
     this.setData({
-      showLoginPrompt: !app.globalData.token
+      showLoginPrompt: !app.hasActiveSession()
     })
 
-    if (app.globalData.token) {
+    if (app.hasActiveSession()) {
       this.loadRelation()
+    } else {
+      this.resetRelationState()
     }
   },
 
   onShow() {
     this.syncView()
 
-    if (app.globalData.token) {
+    if (app.hasActiveSession()) {
       app.connectRealtime()
       this.loadRelation()
+    } else {
+      this.resetRelationState()
     }
   },
 
@@ -108,6 +123,10 @@ Page({
     }
 
     this.setData(nextData)
+  },
+
+  resetRelationState() {
+    this.setData(buildLoggedOutState())
   },
 
   setupInitialLayout() {
@@ -175,7 +194,9 @@ Page({
   },
 
   loadRelation() {
-    if (!app.globalData.token) {
+    if (!app.hasActiveSession()) {
+      this.syncView()
+      this.resetRelationState()
       return
     }
 
@@ -185,6 +206,10 @@ Page({
     }).then((data) => {
       this.setData(buildRelationState(data.relation || null))
     }).catch((err) => {
+      this.syncView()
+      if (!app.hasActiveSession()) {
+        this.resetRelationState()
+      }
       app.showRequestError(err)
     })
   },
@@ -218,7 +243,9 @@ Page({
   },
 
   loadAccounts() {
-    if (!app.globalData.token) {
+    if (!app.hasActiveSession()) {
+      this.syncView()
+      this.resetRelationState()
       return
     }
 
@@ -242,6 +269,10 @@ Page({
       this.setData({
         accountLoading: false
       })
+      this.syncView()
+      if (!app.hasActiveSession()) {
+        this.resetRelationState()
+      }
       app.showRequestError(err)
     })
   },
@@ -274,6 +305,10 @@ Page({
         showCancel: false
       })
     }).catch((err) => {
+      this.syncView()
+      if (!app.hasActiveSession()) {
+        this.resetRelationState()
+      }
       app.showRequestError(err)
     })
   }

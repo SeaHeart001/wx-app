@@ -3,7 +3,7 @@ const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
 const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
-const SITE_BASE_URL = "https://haoiwx.netlify.app"
+const SITE_BASE_URL = "http://10.184.194.141:8888"
 const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
 const SSE_URL = `${SITE_BASE_URL}/.netlify/edge-functions/sse`
 
@@ -174,6 +174,58 @@ function decodeChunk(buffer) {
   }
 }
 
+function decodeBase64Url(value) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+  let input = String(value || "").replace(/-/g, "+").replace(/_/g, "/")
+  let output = ""
+  let buffer = 0
+  let bits = 0
+
+  while (input.length % 4) {
+    input += "="
+  }
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input.charAt(index)
+    if (char === "=") {
+      break
+    }
+
+    const valueIndex = chars.indexOf(char)
+    if (valueIndex < 0) {
+      return ""
+    }
+
+    buffer = (buffer << 6) | valueIndex
+    bits += 6
+
+    if (bits >= 8) {
+      bits -= 8
+      output += String.fromCharCode((buffer >> bits) & 0xff)
+    }
+  }
+
+  try {
+    return decodeURIComponent(escape(output))
+  } catch (err) {
+    return output
+  }
+}
+
+function getTokenExpiry(token) {
+  const parts = String(token || "").split(".")
+  if (parts.length < 2) {
+    return 0
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(parts[1]))
+    return payload && payload.exp ? Number(payload.exp) * 1000 : 0
+  } catch (err) {
+    return 0
+  }
+}
+
 function parseSseBlock(block) {
   const lines = String(block || "").split(/\r?\n/)
   let eventName = "message"
@@ -290,6 +342,11 @@ App({
   },
 
   request(options = {}) {
+    if (this.globalData.token && this.isTokenExpired(this.globalData.token)) {
+      this.clearLoginState()
+      return Promise.reject(new Error("登录已过期，请重新登录"))
+    }
+
     const url = options.url && options.url.indexOf("http") === 0
       ? options.url
       : `${API_BASE_URL}${options.url || ""}`
@@ -319,6 +376,12 @@ App({
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(data)
+            return
+          }
+
+          if (res.statusCode === 401 || res.statusCode === 403) {
+            this.clearLoginState()
+            reject(new Error(data.message || "登录已过期，请重新登录"))
             return
           }
 
@@ -435,7 +498,7 @@ App({
   },
 
   ensureLogin(done, fail) {
-    if (this.globalData.token) {
+    if (this.hasActiveSession()) {
       if (typeof done === "function") {
         done(this.globalData.userProfile)
       }
@@ -503,6 +566,24 @@ App({
     this.clearStoredProfile()
   },
 
+  isTokenExpired(token) {
+    const expiry = getTokenExpiry(token)
+    return Boolean(expiry && Date.now() >= expiry)
+  },
+
+  hasActiveSession() {
+    if (!this.globalData.token) {
+      return false
+    }
+
+    if (this.isTokenExpired(this.globalData.token)) {
+      this.clearLoginState()
+      return false
+    }
+
+    return true
+  },
+
   clearStoredProfile() {
     this.globalData.userProfile = {
       id: "",
@@ -522,7 +603,7 @@ App({
   },
 
   getDisplayName() {
-    if (!this.globalData.token) {
+    if (!this.hasActiveSession()) {
       return "访客"
     }
 
@@ -535,16 +616,16 @@ App({
   },
 
   saveManualProfile(profile) {
+    if (!this.hasActiveSession()) {
+      return Promise.reject(new Error("登录已过期，请重新登录"))
+    }
+
     const localProfile = this.saveUserProfile({
       ...profile,
       source: "manual",
       profileSource: "manual",
       authorized: Boolean(profile.nickname || profile.avatarUrl)
     })
-
-    if (!this.globalData.token) {
-      return Promise.resolve(localProfile)
-    }
 
     return this.request({
       url: "/users/profile",
@@ -625,7 +706,7 @@ App({
 
   getProfileViewModel() {
     const profile = this.globalData.userProfile || {}
-    const isLoggedIn = Boolean(this.globalData.token)
+    const isLoggedIn = this.hasActiveSession()
     const visibleProfile = isLoggedIn ? profile : {}
     const hasProfile = Boolean(visibleProfile.nickname || visibleProfile.avatarUrl)
     const regionParts = [
@@ -682,7 +763,7 @@ App({
   },
 
   connectRealtime() {
-    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseTask) {
+    if (!this.globalData.sseForeground || !this.hasActiveSession() || this.globalData.sseTask) {
       return
     }
 
@@ -740,7 +821,7 @@ App({
   },
 
   scheduleRealtimeReconnect() {
-    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseReconnectTimer) {
+    if (!this.globalData.sseForeground || !this.hasActiveSession() || this.globalData.sseReconnectTimer) {
       return
     }
 
@@ -803,7 +884,7 @@ App({
   },
 
   fetchPendingMessages() {
-    if (!this.globalData.token) {
+    if (!this.hasActiveSession()) {
       return Promise.resolve([])
     }
 

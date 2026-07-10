@@ -55,6 +55,9 @@ Page({
 
   onShow() {
     this.syncView()
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+    }
   },
 
   syncView() {
@@ -108,7 +111,22 @@ Page({
     })
   },
 
+  resetEditorState() {
+    this.setData({
+      editorVisible: false,
+      draftAvatarUrl: "",
+      draftNickname: "",
+      selectedGenderCode: "unknown"
+    })
+  },
+
   persistDraftProfile() {
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+      this.syncView()
+      return
+    }
+
     const nickname = (this.data.draftNickname || "").trim()
     const avatarUrl = this.data.draftAvatarUrl || this.data.avatarUrl
     const gender = genderCodeToValue(this.data.selectedGenderCode)
@@ -138,7 +156,7 @@ Page({
   },
 
   openEditor() {
-    if (!app.globalData.token) {
+    if (!app.hasActiveSession()) {
       this.setData({
         showLoginPrompt: true
       })
@@ -150,7 +168,7 @@ Page({
 
   openEditorPanel() {
     app.ensureLogin(() => {
-      if (!app.globalData.token) {
+      if (!app.hasActiveSession()) {
         this.setData({
           showLoginPrompt: true,
           editorVisible: false,
@@ -227,6 +245,15 @@ Page({
   },
 
   onChooseAvatar(event) {
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+      this.syncView()
+      this.setData({
+        showLoginPrompt: true
+      })
+      return
+    }
+
     const avatarUrl = event.detail.avatarUrl
     const previousAvatarUrl = this.data.draftAvatarUrl || this.data.avatarUrl || ""
 
