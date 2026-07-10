@@ -3,7 +3,7 @@ const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
 const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
-const SITE_BASE_URL = "http://10.184.194.141:8888"
+const SITE_BASE_URL = "http://192.168.1.218:8888"
 const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
 const SSE_URL = `${SITE_BASE_URL}/.netlify/edge-functions/sse`
 
@@ -746,6 +746,9 @@ App({
     }
 
     this.globalData.realtimeListeners.push(listener)
+    if (this.hasActiveSession()) {
+      this.fetchPendingMessages()
+    }
 
     return () => {
       this.globalData.realtimeListeners = this.globalData.realtimeListeners.filter(item => item !== listener)
@@ -870,14 +873,6 @@ App({
   handleRealtimeMessage(event) {
     if (!event || !event.type) {
       return
-    }
-
-    if (event.id && this.globalData.realtimeHandledIds[event.id]) {
-      return
-    }
-
-    if (event.id) {
-      this.globalData.realtimeHandledIds[event.id] = true
     }
 
     this.emitRealtimeMessage(event)

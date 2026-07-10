@@ -1,5 +1,9 @@
 const app = getApp()
 
+const EVENT_KINDS = {
+  MESSAGE: "message"
+}
+
 Component({
   options: {
     styleIsolation: "isolated"
@@ -21,17 +25,35 @@ Component({
   methods: {
     handleRealtimeMessage(event) {
       if (!event || !event.type) {
-        return
+        return false
+      }
+
+      if (event.eventKind !== EVENT_KINDS.MESSAGE) {
+        return false
+      }
+
+      if (event.id && app.globalData.realtimeHandledIds[event.id]) {
+        return true
       }
 
       if (event.actionState === "pending") {
+        this.markHandled(event)
         this.promptActionMessage(event)
-        return
+        return true
       }
 
       if ((event.actionState || "none") === "none") {
+        this.markHandled(event)
         this.showNoticeMessage(event)
-        this.emitHandledEvent(event)
+        return true
+      }
+
+      return false
+    },
+
+    markHandled(event) {
+      if (event && event.id) {
+        app.globalData.realtimeHandledIds[event.id] = true
       }
     },
 
@@ -64,7 +86,6 @@ Component({
             title: data.message || "已同意",
             icon: "success"
           })
-          this.emitHandledEvent(event, data)
           return
         }
 
@@ -87,15 +108,6 @@ Component({
         content: event.content || "你有一条新消息",
         showCancel: false
       })
-    },
-
-    emitHandledEvent(event, data = {}) {
-      if (event.type === "binding_request" || event.type === "binding_accepted") {
-        app.emitRealtimeMessage({
-          type: "relation_changed",
-          relation: data.relation || event.relation || null
-        })
-      }
     }
   }
 })
