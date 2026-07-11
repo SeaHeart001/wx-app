@@ -1,6 +1,7 @@
 const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
+const SSE_CLIENT_ID_KEY = "wx_app_sse_client_id"
 const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
 const SITE_BASE_URL = "http://192.168.1.218:8888"
@@ -39,6 +40,11 @@ function generateDisplayId() {
   const middle = Math.floor(Math.random() * 9000 + 1000)
   const tail = Math.floor(Math.random() * 9000 + 1000)
   return `138${middle}${tail}`
+}
+
+function generateSseClientId() {
+  const random = Math.random().toString(36).slice(2, 10)
+  return `mp-${Date.now().toString(36)}-${random}`
 }
 
 function genderValueToCode(gender) {
@@ -288,6 +294,7 @@ App({
     loginAtTimestamp: 0,
     loadingCount: 0,
     navigationLayoutCache: {},
+    sseClientId: "",
     sseTask: null,
     sseBuffer: "",
     sseConnected: false,
@@ -301,6 +308,7 @@ App({
   onLaunch() {
     this.restoreSession()
     this.restoreDisplayId()
+    this.restoreSseClientId()
   },
 
   onShow() {
@@ -339,6 +347,23 @@ App({
     const nextId = generateDisplayId()
     this.globalData.displayId = nextId
     wx.setStorageSync(DISPLAY_ID_KEY, nextId)
+  },
+
+  restoreSseClientId() {
+    const stored = wx.getStorageSync(SSE_CLIENT_ID_KEY)
+    if (stored) {
+      this.globalData.sseClientId = stored
+      return stored
+    }
+
+    const nextId = generateSseClientId()
+    this.globalData.sseClientId = nextId
+    wx.setStorageSync(SSE_CLIENT_ID_KEY, nextId)
+    return nextId
+  },
+
+  getSseClientId() {
+    return this.globalData.sseClientId || this.restoreSseClientId()
   },
 
   request(options = {}) {
@@ -775,14 +800,17 @@ App({
       this.globalData.sseReconnectTimer = null
     }
 
+    const sseClientId = this.getSseClientId()
+    const sseUrl = `${SSE_URL}?clientId=${encodeURIComponent(sseClientId)}`
     const task = wx.request({
-      url: SSE_URL,
+      url: sseUrl,
       method: "GET",
       enableChunked: true,
       timeout: 600000,
       header: {
         Accept: "text/event-stream",
-        Authorization: `Bearer ${this.globalData.token}`
+        Authorization: `Bearer ${this.globalData.token}`,
+        "x-sse-client-id": sseClientId
       },
       success: () => {},
       fail: () => {},
@@ -813,6 +841,8 @@ App({
       this.globalData.sseReconnectTimer = null
     }
 
+    this.closeRealtimeServerClient()
+
     const task = this.globalData.sseTask
     this.globalData.sseTask = null
     this.globalData.sseConnected = false
@@ -821,6 +851,24 @@ App({
     if (task && typeof task.abort === "function") {
       task.abort()
     }
+  },
+
+  closeRealtimeServerClient() {
+    if (!this.globalData.token) {
+      return
+    }
+
+    const sseClientId = this.getSseClientId()
+    wx.request({
+      url: `${SSE_URL}?clientId=${encodeURIComponent(sseClientId)}`,
+      method: "DELETE",
+      header: {
+        Authorization: `Bearer ${this.globalData.token}`,
+        "x-sse-client-id": sseClientId
+      },
+      success: () => {},
+      fail: () => {}
+    })
   },
 
   scheduleRealtimeReconnect() {
