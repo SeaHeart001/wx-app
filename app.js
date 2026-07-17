@@ -302,7 +302,9 @@ App({
     sseReconnectTimer: null,
     realtimeListeners: [],
     realtimeHandledIds: {},
-    realtimePromptingIds: {}
+    realtimePromptingIds: {},
+    messageQueue: [],
+    messageModalShowing: false
   },
 
   onLaunch() {

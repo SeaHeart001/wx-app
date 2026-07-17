@@ -12,6 +12,7 @@ Component({
   lifetimes: {
     attached() {
       this.realtimeOff = app.onRealtimeMessage(this.handleRealtimeMessage.bind(this))
+      this.showNextMessage()
     },
 
     detached() {
@@ -38,13 +39,13 @@ Component({
 
       if (event.actionState === "pending") {
         this.markHandled(event)
-        this.promptActionMessage(event)
+        this.enqueueMessage(event)
         return true
       }
 
       if ((event.actionState || "none") === "none") {
         this.markHandled(event)
-        this.showNoticeMessage(event)
+        this.enqueueMessage(event)
         return true
       }
 
@@ -57,8 +58,35 @@ Component({
       }
     },
 
+    enqueueMessage(event) {
+      app.globalData.messageQueue.push(event)
+      this.showNextMessage()
+    },
+
+    showNextMessage() {
+      if (app.globalData.messageModalShowing || !app.globalData.messageQueue.length) {
+        return
+      }
+
+      const event = app.globalData.messageQueue.shift()
+      app.globalData.messageModalShowing = true
+
+      if (event.actionState === "pending") {
+        this.promptActionMessage(event)
+        return
+      }
+
+      this.showNoticeMessage(event)
+    },
+
+    finishCurrentMessage() {
+      app.globalData.messageModalShowing = false
+      this.showNextMessage()
+    },
+
     promptActionMessage(event) {
       if (!event.id || app.globalData.realtimePromptingIds[event.id]) {
+        this.finishCurrentMessage()
         return
       }
 
@@ -75,6 +103,7 @@ Component({
         },
         complete: () => {
           delete app.globalData.realtimePromptingIds[event.id]
+          this.finishCurrentMessage()
         }
       })
     },
@@ -106,7 +135,10 @@ Component({
       wx.showModal({
         title: event.title || "消息通知",
         content: event.content || "你有一条新消息",
-        showCancel: false
+        showCancel: false,
+        complete: () => {
+          this.finishCurrentMessage()
+        }
       })
     }
   }
