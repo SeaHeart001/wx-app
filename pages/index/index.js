@@ -257,7 +257,7 @@ Page({
     app.request({
       url: "/relations/message",
       data: {
-        content
+        messageType: "pat" // 目前写死的“类型”，可改成请求配置列表
       },
       loadingTitle: "发送中"
     }).then((data) => {
