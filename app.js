@@ -4,7 +4,7 @@ const TOKEN_KEY = "wx_app_token"
 const SSE_CLIENT_ID_KEY = "wx_app_sse_client_id"
 const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
-const SITE_BASE_URL = "http://localhost:8888"
+const SITE_BASE_URL = "https://haoiwx.netlify.app"
 const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
 const SSE_URL = `${SITE_BASE_URL}/.netlify/edge-functions/sse`
 
