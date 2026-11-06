@@ -1,21 +1,26 @@
 const app = getApp()
 
-const EVENT_KINDS = {
-  MESSAGE: "message"
-}
-
 Component({
-  options: {
-    styleIsolation: "isolated"
+  options: { styleIsolation: "isolated" },
+
+  data: {
+    currentMessage: null,
+    senderName: "",
+    senderAvatar: "",
+    senderInitial: "友",
+    submitting: false
   },
 
   lifetimes: {
     attached() {
+      this.pageVisible = true
       this.realtimeOff = app.onRealtimeMessage(this.handleRealtimeMessage.bind(this))
       this.showNextMessage()
     },
 
     detached() {
+      this.pageVisible = false
+      this.releaseCurrentMessage()
       if (this.realtimeOff) {
         this.realtimeOff()
         this.realtimeOff = null
@@ -23,122 +28,126 @@ Component({
     }
   },
 
-  methods: {
-    handleRealtimeMessage(event) {
-      if (!event || !event.type) {
-        return false
-      }
-
-      if (event.eventKind !== EVENT_KINDS.MESSAGE) {
-        return false
-      }
-
-      if (event.id && app.globalData.realtimeHandledIds[event.id]) {
-        return true
-      }
-
-      if (event.actionState === "pending") {
-        this.markHandled(event)
-        this.enqueueMessage(event)
-        return true
-      }
-
-      if ((event.actionState || "none") === "none") {
-        this.markHandled(event)
-        this.enqueueMessage(event)
-        return true
-      }
-
-      return false
+  pageLifetimes: {
+    show() {
+      this.pageVisible = true
+      this.showNextMessage()
     },
 
-    markHandled(event) {
-      if (event && event.id) {
+    hide() {
+      this.pageVisible = false
+      this.releaseCurrentMessage()
+    }
+  },
+
+  methods: {
+    updateTabBar(hidden) {
+      const pages = getCurrentPages()
+      const page = pages[pages.length - 1]
+      const tabBar = page && page.getTabBar && page.getTabBar()
+      if (tabBar) {
+        tabBar.setData({ hidden: hidden || Boolean(page.data.editorVisible) })
+      }
+    },
+
+    handleRealtimeMessage(event) {
+      if (!event) {
+        return
+      }
+      if (event.type === "session_cleared") {
+        this.setData({ currentMessage: null, submitting: false })
+        app.globalData.messageModalShowing = false
+        this.updateTabBar(false)
+        return
+      }
+      if (event.type === "message_handled") {
+        if (this.data.currentMessage && this.data.currentMessage.id === event.messageId) {
+          // The component that submitted the action advances the queue after its request settles.
+          if (!this.data.submitting && this.data.currentMessage.actionState === "pending") {
+            this.finishCurrentMessage()
+          }
+        }
+        return
+      }
+      if (event.eventKind !== "message" || event.readAt) {
+        return
+      }
+      if (!["pending", "none"].includes(event.actionState || "none")) {
+        return
+      }
+      if (event.id && app.globalData.realtimeHandledIds[event.id]) {
+        this.showNextMessage()
+        return
+      }
+      if (event.id) {
         app.globalData.realtimeHandledIds[event.id] = true
       }
-    },
-
-    enqueueMessage(event) {
       app.globalData.messageQueue.push(event)
       this.showNextMessage()
     },
 
     showNextMessage() {
-      if (app.globalData.messageModalShowing || !app.globalData.messageQueue.length) {
+      if (!this.pageVisible || app.globalData.messageModalShowing || !app.globalData.messageQueue.length) {
         return
       }
-
       const event = app.globalData.messageQueue.shift()
+      const sender = event.from || {}
+      const senderName = sender.nickname || sender.account || "你的伙伴"
       app.globalData.messageModalShowing = true
+      this.updateTabBar(true)
+      this.setData({
+        currentMessage: event,
+        senderName,
+        senderAvatar: sender.avatarUrl || "",
+        senderInitial: senderName.slice(0, 1),
+        submitting: false
+      })
+      if ((event.actionState || "none") === "none" && event.id) {
+        app.markMessageRead(event.id)
+      }
+    },
 
-      if (event.actionState === "pending") {
-        this.promptActionMessage(event)
+    releaseCurrentMessage() {
+      const event = this.data.currentMessage
+      if (!event) {
         return
       }
-
-      this.showNoticeMessage(event)
+      if (!app.globalData.messageQueue.some(message => message.id === event.id)) {
+        app.globalData.messageQueue.unshift(event)
+      }
+      this.setData({ currentMessage: null, submitting: false })
+      app.globalData.messageModalShowing = false
+      this.updateTabBar(false)
     },
 
     finishCurrentMessage() {
+      this.setData({ currentMessage: null, submitting: false })
       app.globalData.messageModalShowing = false
+      this.updateTabBar(false)
       this.showNextMessage()
     },
 
-    promptActionMessage(event) {
-      if (!event.id || app.globalData.realtimePromptingIds[event.id]) {
+    handleDecision(event) {
+      const message = this.data.currentMessage
+      if (!message || this.data.submitting) {
+        return
+      }
+      const action = event.currentTarget.dataset.action
+      if (action === "read") {
         this.finishCurrentMessage()
         return
       }
-
-      app.globalData.realtimePromptingIds[event.id] = true
-
-      wx.showModal({
-        title: event.title || "消息确认",
-        content: event.content || "请确认是否同意",
-        confirmText: "同意",
-        cancelText: "拒绝",
-        success: (res) => {
-          const action = res.confirm ? "accept" : "decline"
-          this.handleMessageDecision(event, action)
-        },
-        complete: () => {
-          delete app.globalData.realtimePromptingIds[event.id]
+      this.setData({ submitting: true })
+      app.handleMessageAction(message.id, action).then((data) => {
+        wx.showToast({ title: data.message || (action === "accept" ? "已同意" : "已拒绝"), icon: "none" })
+        if (this.data.currentMessage && this.data.currentMessage.id === message.id) {
           this.finishCurrentMessage()
         }
-      })
-    },
-
-    handleMessageDecision(event, action) {
-      app.handleMessageAction(event.id, action).then((data) => {
-        if (action === "accept") {
-          wx.showToast({
-            title: data.message || "已同意",
-            icon: "success"
-          })
-          return
-        }
-
-        wx.showToast({
-          title: "已拒绝",
-          icon: "none"
-        })
       }).catch((err) => {
-        app.showRequestError(err)
-      })
-    },
-
-    showNoticeMessage(event) {
-      if (event.id) {
-        app.markMessageRead(event.id)
-      }
-
-      wx.showModal({
-        title: event.title || "消息通知",
-        content: event.content || "你有一条新消息",
-        showCancel: false,
-        complete: () => {
-          this.finishCurrentMessage()
+        if (this.data.currentMessage && this.data.currentMessage.id === message.id) {
+          this.setData({ submitting: false })
         }
+        app.showRequestError(err)
       })
     }
   }

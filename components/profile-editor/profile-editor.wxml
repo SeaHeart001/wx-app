@@ -1,64 +1,116 @@
 <view wx:if="{{mounted}}" class="editor-root">
-  <view class="panel-backdrop {{active ? 'panel-backdrop-open' : ''}}" bindtap="handleClose"></view>
-
   <view class="panel {{active ? 'panel-open' : ''}}">
-    <view class="panel-header">
+    <view class="panel-header" style="padding-top: {{navTop}}px; height: {{navTotalHeight}}px;">
+      <button
+        class="panel-back"
+        bindtap="handleClose"
+        disabled="{{saving || uploading}}"
+        aria-label="返回"
+      >
+        ‹
+      </button>
       <text class="panel-title">{{title}}</text>
     </view>
-
-    <form class="panel-body" bindsubmit="handleSubmit">
-      <view class="avatar-block">
-        <button class="panel-avatar-button" open-type="chooseAvatar" bindchooseavatar="handleChooseAvatar">
-          <image wx:if="{{avatarUrl}}" class="panel-avatar" src="{{avatarUrl}}" mode="aspectFill" />
-          <view wx:else class="panel-avatar-placeholder"></view>
-        </button>
-        <text class="avatar-hint">点击更换头像</text>
-      </view>
-
-      <view class="field-block">
-        <text class="field-label">昵称</text>
-        <view class="field-input-wrap">
-          <input
-            class="field-input"
-            name="nickname"
-            type="nickname"
-            value="{{nickname}}"
-            placeholder="请输入昵称"
-            bindinput="handleNicknameInput"
-            bindblur="handleNicknameBlur"
-          />
-          <view class="field-action">
-            <view class="pencil-icon">
-              <view class="pencil-line"></view>
-              <view class="pencil-tip"></view>
+    <scroll-view class="panel-scroll" scroll-y enhanced>
+      <view class="panel-body">
+        <form bindsubmit="handleSubmit">
+          <text class="eyebrow">ABOUT YOU</text>
+          <text class="page-title">让对方，一眼认出你。</text>
+          <text class="subtitle">更新头像和昵称，保留熟悉的样子。</text>
+          <view class="card avatar-block">
+            <button
+              class="avatar"
+              open-type="chooseAvatar"
+              bindchooseavatar="handleChooseAvatar"
+              disabled="{{uploading || saving}}"
+              aria-label="更换头像"
+            >
+              <image
+                wx:if="{{avatarUrl}}"
+                class="avatar-image"
+                src="{{avatarUrl}}"
+                mode="aspectFill"
+              />
+              <text wx:else>我</text>
+            </button>
+            <text class="avatar-hint">{{uploading ? '头像上传中…' : '更换头像 ›'}}</text>
+          </view>
+          <view class="card profile-fields">
+            <view class="field-row">
+              <text class="field-label">昵称</text>
+              <input
+                class="field-input"
+                name="nickname"
+                type="nickname"
+                value="{{nickname}}"
+                placeholder="请输入昵称"
+                bindinput="handleNicknameInput"
+                bindblur="handleNicknameBlur"
+                disabled="{{saving}}"
+              />
             </view>
+            <view class="field-row gender-field">
+              <text class="field-label">性别</text>
+              <view class="gender-row">
+                <button
+                  wx:for="{{genderOptions}}"
+                  wx:key="code"
+                  class="gender-option {{genderCode === item.code ? 'gender-option-active' : ''}}"
+                  data-gender-code="{{item.code}}"
+                  bindtap="handleSelectGender"
+                  disabled="{{saving}}"
+                >
+                  {{item.label}}
+                </button>
+              </view>
+            </view>
+            <view class="field-row">
+              <text class="field-label">国家</text>
+              <input
+                class="field-input"
+                value="{{country}}"
+                placeholder="未设置"
+                bindinput="handleCountryInput"
+                disabled="{{saving}}"
+              />
+            </view>
+            <picker
+              mode="region"
+              value="{{[province, city, '']}}"
+              bindchange="handleRegionChange"
+              disabled="{{saving}}"
+            >
+              <view class="field-row">
+                <text class="field-label">省份</text>
+                <text class="field-value">{{province || '未设置'}} ›</text>
+              </view>
+              <view class="field-row">
+                <text class="field-label">城市</text>
+                <text class="field-value">{{city || '未设置'}} ›</text>
+              </view>
+            </picker>
           </view>
-        </view>
-      </view>
-
-      <view class="field-block">
-        <text class="field-label">性别</text>
-        <view class="gender-row">
-          <view
-            wx:for="{{genderOptions}}"
-            wx:key="code"
-            class="gender-option {{genderCode === item.code ? 'gender-option-active' : ''}}"
-            data-gender-code="{{item.code}}"
-            bindtap="handleSelectGender"
+          <button
+            class="primary-button save-button"
+            form-type="submit"
+            loading="{{saving}}"
+            disabled="{{saving || uploading}}"
           >
-            <text class="gender-option-text">{{item.label}}</text>
+            {{uploading ? '等待头像上传' : '保存资料'}}
+          </button>
+          <text class="hint">保存后，你的伙伴将看到更新后的资料。</text>
+          <view class="panel-footer">
+            <button class="text-button" bindtap="handleSubscribe">消息提醒</button>
+            <button
+              class="text-button logout-button"
+              bindtap="handleLogout"
+              disabled="{{saving || uploading}}"
+            >
+              退出登录
+            </button>
           </view>
-        </view>
+        </form>
       </view>
-    </form>
-
-    <view class="panel-footer">
-      <button class="notify-button" bindtap="handleSubscribe">
-        <text class="notify-text">消息提醒</text>
-      </button>
-      <button class="logout-button" bindtap="handleLogout">
-        <text class="logout-text">退出登录</text>
-      </button>
-    </view>
+    </scroll-view>
   </view>
 </view>

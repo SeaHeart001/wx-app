@@ -8,6 +8,11 @@ Component({
       type: Boolean,
       value: false
     },
+    saving: { type: Boolean, value: false },
+    uploading: { type: Boolean, value: false },
+    country: { type: String, value: "" },
+    province: { type: String, value: "" },
+    city: { type: String, value: "" },
     title: {
       type: String,
       value: "编辑资料"
@@ -31,6 +36,8 @@ Component({
   },
 
   data: {
+    navTop: 0,
+    navTotalHeight: 88,
     mounted: false,
     active: false
   },
@@ -47,6 +54,10 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      const layout = getApp().getNavigationLayout({ heightOffset: 5 })
+      this.setData({ navTop: layout.navTop, navTotalHeight: layout.navTotalHeight })
+    },
     detached() {
       if (this.timer) {
         clearTimeout(this.timer)
@@ -55,6 +66,13 @@ Component({
   },
 
   methods: {
+    handleRegionChange(event) {
+      this.triggerEvent("regionchange", { value: event.detail.value })
+    },
+
+    handleCountryInput(event) {
+      this.triggerEvent("countryinput", { value: event.detail.value })
+    },
     open() {
       if (this.timer) {
         clearTimeout(this.timer)

@@ -4,6 +4,14 @@ Component({
   },
 
   properties: {
+    back: {
+      type: Boolean,
+      value: false
+    },
+    showAvatar: {
+      type: Boolean,
+      value: false
+    },
     title: {
       type: String,
       value: ""
@@ -59,6 +67,9 @@ Component({
   },
 
   methods: {
+    handleBack() {
+      this.triggerEvent("back")
+    },
     setupLayout() {
       const app = getApp()
       const layout = app.getNavigationLayout({

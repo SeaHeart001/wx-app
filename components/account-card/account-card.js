@@ -4,6 +4,10 @@ Component({
   },
 
   properties: {
+    regionText: {
+      type: String,
+      value: "完善资料，让彼此更熟悉"
+    },
     isLoggedIn: {
       type: Boolean,
       value: false

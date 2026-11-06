@@ -1,14 +1,5 @@
 <view class="page">
-  <custom-nav
-    title="个人中心"
-    avatar-url="{{avatarUrl}}"
-    display-name="{{displayName}}"
-    is-logged-in="{{isLoggedIn}}"
-    height-offset="{{5}}"
-    bind:avatartap="openEditor"
-    bind:layout="handleNavLayout"
-  />
-
+  <custom-nav title="我的" bind:layout="handleNavLayout" />
   <view class="content" style="padding-top: {{contentTop}}px;">
     <account-card
       is-logged-in="{{isLoggedIn}}"
@@ -18,31 +9,50 @@
       profile-status="{{profileStatus}}"
       member-id-text="{{memberIdText}}"
       updated-at-display="{{updatedAtDisplay}}"
+      region-text="{{regionText}}"
       bind:avatartap="openEditor"
     />
+    <view class="card report-entry">
+      <text class="report-eyebrow">YOUR YEAR, IN LITTLE MOMENTS</text>
+      <text class="report-title">{{reportYear}}\n每一次在意，都被记得。</text>
+      <button class="secondary-button" bindtap="openReport">打开我的年度报告</button>
+    </view>
+    <text class="section-title">通知提醒</text>
+    <text class="copy">需要微信提醒时，可申请订阅消息授权。</text>
+    <button class="secondary-button subscribe-button" bindtap="handleSubscribeMessages">
+      开启本次微信提醒
+    </button>
+    <button wx:if="{{isLoggedIn}}" class="text-button logout-entry" bindtap="logoutProfile">
+      退出登录
+    </button>
   </view>
-
   <auth-modal
     visible="{{showLoginPrompt}}"
-    title="授权登录"
-    message="点击确认后通过微信登录凭证换取 openid，并建立后端登录态。未点击前不会自动登录。"
-    confirm-text="确认登录"
+    title="欢迎来到轻触"
+    message="登录后，完善资料并找到想连接的人。"
+    confirm-text="微信一键登录"
     cancel-text="稍后再说"
     bind:confirm="handleLoginAuthorize"
     bind:cancel="dismissLoginPrompt"
   />
-
   <profile-editor
     visible="{{editorVisible}}"
     avatar-url="{{draftAvatarUrl}}"
     nickname="{{draftNickname}}"
     gender-options="{{genderOptions}}"
     gender-code="{{selectedGenderCode}}"
+    country="{{draftCountry}}"
+    province="{{draftProvince}}"
+    city="{{draftCity}}"
+    saving="{{saving}}"
+    uploading="{{uploading}}"
     bind:close="closeEditor"
     bind:avatarchange="onChooseAvatar"
     bind:nicknameinput="onNicknameInput"
     bind:nicknameblur="onNicknameBlur"
     bind:genderchange="selectGender"
+    bind:regionchange="handleRegionChange"
+    bind:countryinput="handleCountryInput"
     bind:submit="handleManualSubmit"
     bind:subscribe="handleSubscribeMessages"
     bind:logout="logoutProfile"

@@ -1,12 +1,31 @@
-.page {
-  min-height: 100vh;
-  box-sizing: border-box;
-  background: #f2f5fb;
+.report-entry {
+  background: #35432d;
 }
-
-.content {
-  box-sizing: border-box;
-  padding-left: 32rpx;
-  padding-right: 32rpx;
-  padding-bottom: 150rpx;
+.report-eyebrow {
+  color: #c4d1b6;
+  font-size: 19rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.report-title {
+  display: block;
+  margin: 23rpx 0;
+  color: #fff;
+  font-size: 46rpx;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.section-title {
+  display: block;
+  margin: 38rpx 0 20rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+}
+.subscribe-button {
+  margin-top: 38rpx !important;
+}
+.logout-entry {
+  margin-top: 20rpx !important;
+  color: #8a867d;
 }

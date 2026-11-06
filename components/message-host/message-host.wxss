@@ -1,3 +1,50 @@
-.message-host {
-  display: none;
+@import "../../styles/theme.wxss";
+.message-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 46rpx;
+  background: rgba(48, 46, 41, 0.28);
+}
+.message-card {
+  width: 100%;
+  max-width: 658rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 46rpx;
+  border-radius: 46rpx;
+  background: #fff;
+  text-align: center;
+}
+.message-avatar {
+  width: 138rpx;
+  height: 138rpx;
+  margin: 0 auto;
+}
+.message-title {
+  display: block;
+  margin-top: 23rpx;
+  color: #302e29;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.message-copy {
+  display: block;
+  margin: 23rpx 0 38rpx;
+  color: #8a867d;
+  font-size: 27rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.message-card .secondary-button {
+  margin-top: 23rpx !important;
 }

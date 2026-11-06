@@ -6,8 +6,8 @@
     "profile-editor": "/components/profile-editor/profile-editor"
   },
   "navigationStyle": "custom",
-  "backgroundColor": "#F2F5FB",
-  "backgroundColorTop": "#F2F5FB",
-  "backgroundColorBottom": "#F2F5FB",
+  "backgroundColor": "#FAF8F4",
+  "backgroundColorTop": "#FAF8F4",
+  "backgroundColorBottom": "#FAF8F4",
   "backgroundTextStyle": "light"
 }

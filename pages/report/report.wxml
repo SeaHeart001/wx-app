@@ -1,0 +1,31 @@
+<view class="page report-page">
+  <custom-nav title="年度报告" back bind:back="backToProfile" bind:layout="handleNavLayout" />
+  <view class="content report-content" style="padding-top: {{contentTop}}px;">
+    <text class="eyebrow">{{year ? year + ' / ' : ''}}YOUR LITTLE MOMENTS</text>
+    <text class="page-title">这一年，\n关心有了回响。</text>
+    <text class="subtitle">每一次出现，都留下了一点温度。</text>
+    <view wx:if="{{loading}}" class="card empty-state">
+      <text class="card-title">正在收集这一年的小瞬间…</text>
+    </view>
+    <view wx:elif="{{errorMessage}}" class="card empty-state">
+      <text class="card-title">报告稍等一下</text>
+      <text class="copy">{{errorMessage}}</text>
+      <button class="secondary-button retry-button" bindtap="loadReport">重新加载</button>
+    </view>
+    <view wx:elif="{{!lines.length}}" class="card empty-state">
+      <text class="card-title">故事，刚刚开始</text>
+      <text class="copy">这一年的小瞬间，会慢慢积累在这里。</text>
+    </view>
+    <view wx:else class="card report-lines">
+      <text
+        wx:for="{{lines}}"
+        wx:key="index"
+        class="report-line {{index === 0 ? 'report-line-first' : ''}}"
+      >
+        {{item}}
+      </text>
+    </view>
+    <text class="report-thanks">谢谢你，把关心放进了日常。</text>
+    <button class="secondary-button back-button" bindtap="backToProfile">回到我的</button>
+  </view>
+</view>

@@ -304,6 +304,7 @@ App({
     realtimeHandledIds: {},
     realtimePromptingIds: {},
     messageQueue: [],
+    inboxMessages: [],
     messageModalShowing: false
   },
 
@@ -612,6 +613,11 @@ App({
   },
 
   clearStoredProfile() {
+    this.globalData.inboxMessages = []
+    this.globalData.messageQueue = []
+    this.globalData.realtimeHandledIds = {}
+    this.globalData.realtimePromptingIds = {}
+    this.emitRealtimeMessage({ type: "session_cleared", eventKind: "sync" })
     this.globalData.userProfile = {
       id: "",
       openid: "",
@@ -647,12 +653,14 @@ App({
       return Promise.reject(new Error("登录已过期，请重新登录"))
     }
 
-    const localProfile = this.saveUserProfile({
+    const token = this.globalData.token
+    const localProfile = {
+      ...this.globalData.userProfile,
       ...profile,
       source: "manual",
       profileSource: "manual",
       authorized: Boolean(profile.nickname || profile.avatarUrl)
-    })
+    }
 
     return this.request({
       url: "/users/profile",
@@ -666,6 +674,9 @@ App({
         profileSource: "manual"
       }
     }).then((data) => {
+      if (token !== this.globalData.token) {
+        throw new Error("登录状态已变更，请重试")
+      }
       return this.saveSession(null, data.user)
     })
   },
@@ -925,6 +936,18 @@ App({
       return
     }
 
+    if (event.eventKind === "message" && event.id) {
+      const messages = this.globalData.inboxMessages
+      const index = messages.findIndex(message => message.id === event.id)
+      if (event.readAt || !["pending", "none"].includes(event.actionState || "none")) {
+        this.globalData.inboxMessages = messages.filter(message => message.id !== event.id)
+      } else if (index > -1) {
+        messages[index] = event
+      } else {
+        messages.unshift(event)
+      }
+    }
+
     this.emitRealtimeMessage(event)
   },
 
@@ -933,10 +956,14 @@ App({
       return Promise.resolve([])
     }
 
+    const token = this.globalData.token
     return this.request({
       url: "/messages/events",
       loadingTitle: ""
     }).then((data) => {
+      if (token !== this.globalData.token) {
+        return []
+      }
       const events = Array.isArray(data.events) ? data.events : []
       events.forEach((event) => {
         this.handleRealtimeMessage(event)
@@ -950,14 +977,7 @@ App({
       return
     }
 
-    this.request({
-      url: "/messages/action",
-      data: {
-        messageId,
-        action: "read"
-      },
-      loadingTitle: ""
-    }).catch(() => {})
+    return this.handleMessageAction(messageId, "read").catch(() => {})
   },
 
   handleMessageAction(messageId, action) {
@@ -965,6 +985,7 @@ App({
       return Promise.reject(new Error("消息参数无效"))
     }
 
+    const token = this.globalData.token
     return this.request({
       url: "/messages/action",
       data: {
@@ -972,6 +993,13 @@ App({
         action
       },
       loadingTitle: action === "read" ? "" : "处理中"
+    }).then((data) => {
+      if (this.globalData.token === token) {
+        this.globalData.inboxMessages = this.globalData.inboxMessages.filter(message => message.id !== messageId)
+        this.globalData.messageQueue = this.globalData.messageQueue.filter(message => message.id !== messageId)
+        this.emitRealtimeMessage({ type: "message_handled", eventKind: "sync", messageId })
+      }
+      return data
     })
   },
 
