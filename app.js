@@ -1,6 +1,8 @@
 const STORAGE_KEY = "wx_app_profile"
 const DISPLAY_ID_KEY = "wx_app_display_id"
 const TOKEN_KEY = "wx_app_token"
+const SSE_CLIENT_ID_KEY = "wx_app_sse_client_id"
+const SUBSCRIBE_MESSAGE_TEMPLATE_ID = "_b42cmg1CuItFk1NmjV05t6P4x2zsekt8qvg8qkGWfk"
 // Publish builds must use the HTTPS Netlify site domain and add it to the Mini Program request domain allowlist.
 const SITE_BASE_URL = "https://haoiwx.netlify.app"
 const API_BASE_URL = `${SITE_BASE_URL}/.netlify/functions`
@@ -38,6 +40,11 @@ function generateDisplayId() {
   const middle = Math.floor(Math.random() * 9000 + 1000)
   const tail = Math.floor(Math.random() * 9000 + 1000)
   return `138${middle}${tail}`
+}
+
+function generateSseClientId() {
+  const random = Math.random().toString(36).slice(2, 10)
+  return `mp-${Date.now().toString(36)}-${random}`
 }
 
 function genderValueToCode(gender) {
@@ -173,6 +180,58 @@ function decodeChunk(buffer) {
   }
 }
 
+function decodeBase64Url(value) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+  let input = String(value || "").replace(/-/g, "+").replace(/_/g, "/")
+  let output = ""
+  let buffer = 0
+  let bits = 0
+
+  while (input.length % 4) {
+    input += "="
+  }
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input.charAt(index)
+    if (char === "=") {
+      break
+    }
+
+    const valueIndex = chars.indexOf(char)
+    if (valueIndex < 0) {
+      return ""
+    }
+
+    buffer = (buffer << 6) | valueIndex
+    bits += 6
+
+    if (bits >= 8) {
+      bits -= 8
+      output += String.fromCharCode((buffer >> bits) & 0xff)
+    }
+  }
+
+  try {
+    return decodeURIComponent(escape(output))
+  } catch (err) {
+    return output
+  }
+}
+
+function getTokenExpiry(token) {
+  const parts = String(token || "").split(".")
+  if (parts.length < 2) {
+    return 0
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(parts[1]))
+    return payload && payload.exp ? Number(payload.exp) * 1000 : 0
+  } catch (err) {
+    return 0
+  }
+}
+
 function parseSseBlock(block) {
   const lines = String(block || "").split(/\r?\n/)
   let eventName = "message"
@@ -235,6 +294,7 @@ App({
     loginAtTimestamp: 0,
     loadingCount: 0,
     navigationLayoutCache: {},
+    sseClientId: "",
     sseTask: null,
     sseBuffer: "",
     sseConnected: false,
@@ -242,12 +302,16 @@ App({
     sseReconnectTimer: null,
     realtimeListeners: [],
     realtimeHandledIds: {},
-    realtimePromptingIds: {}
+    realtimePromptingIds: {},
+    messageQueue: [],
+    inboxMessages: [],
+    messageModalShowing: false
   },
 
   onLaunch() {
     this.restoreSession()
     this.restoreDisplayId()
+    this.restoreSseClientId()
   },
 
   onShow() {
@@ -288,7 +352,29 @@ App({
     wx.setStorageSync(DISPLAY_ID_KEY, nextId)
   },
 
+  restoreSseClientId() {
+    const stored = wx.getStorageSync(SSE_CLIENT_ID_KEY)
+    if (stored) {
+      this.globalData.sseClientId = stored
+      return stored
+    }
+
+    const nextId = generateSseClientId()
+    this.globalData.sseClientId = nextId
+    wx.setStorageSync(SSE_CLIENT_ID_KEY, nextId)
+    return nextId
+  },
+
+  getSseClientId() {
+    return this.globalData.sseClientId || this.restoreSseClientId()
+  },
+
   request(options = {}) {
+    if (this.globalData.token && this.isTokenExpired(this.globalData.token)) {
+      this.clearLoginState()
+      return Promise.reject(new Error("登录已过期，请重新登录"))
+    }
+
     const url = options.url && options.url.indexOf("http") === 0
       ? options.url
       : `${API_BASE_URL}${options.url || ""}`
@@ -321,6 +407,12 @@ App({
             return
           }
 
+          if (res.statusCode === 401 || res.statusCode === 403) {
+            this.clearLoginState()
+            reject(new Error(data.message || "登录已过期，请重新登录"))
+            return
+          }
+
           reject(new Error(data.message || `请求失败 ${res.statusCode}`))
         },
         fail: reject,
@@ -328,6 +420,49 @@ App({
           if (loadingTitle) {
             this.hideLoading()
           }
+        }
+      })
+    })
+  },
+
+  requestMessageSubscribe(options = {}) {
+    const silent = Boolean(options.silent)
+
+    if (!wx.requestSubscribeMessage) {
+      if (!silent) {
+        wx.showToast({
+          title: "当前微信版本不支持订阅消息",
+          icon: "none"
+        })
+      }
+      return Promise.resolve(false)
+    }
+
+    return new Promise((resolve) => {
+      wx.requestSubscribeMessage({
+        tmplIds: [SUBSCRIBE_MESSAGE_TEMPLATE_ID],
+        success: (res) => {
+          const state = res[SUBSCRIBE_MESSAGE_TEMPLATE_ID]
+          const accepted = state === "accept"
+
+          if (!silent) {
+            wx.showToast({
+              title: accepted ? "已开启消息提醒" : "未开启消息提醒",
+              icon: "none"
+            })
+          }
+
+          resolve(accepted)
+        },
+        fail: (err) => {
+          if (!silent) {
+            wx.showToast({
+              title: getErrorMessage(err),
+              icon: "none"
+            })
+          }
+
+          resolve(false)
         }
       })
     })
@@ -391,7 +526,7 @@ App({
   },
 
   ensureLogin(done, fail) {
-    if (this.globalData.token) {
+    if (this.hasActiveSession()) {
       if (typeof done === "function") {
         done(this.globalData.userProfile)
       }
@@ -459,7 +594,30 @@ App({
     this.clearStoredProfile()
   },
 
+  isTokenExpired(token) {
+    const expiry = getTokenExpiry(token)
+    return Boolean(expiry && Date.now() >= expiry)
+  },
+
+  hasActiveSession() {
+    if (!this.globalData.token) {
+      return false
+    }
+
+    if (this.isTokenExpired(this.globalData.token)) {
+      this.clearLoginState()
+      return false
+    }
+
+    return true
+  },
+
   clearStoredProfile() {
+    this.globalData.inboxMessages = []
+    this.globalData.messageQueue = []
+    this.globalData.realtimeHandledIds = {}
+    this.globalData.realtimePromptingIds = {}
+    this.emitRealtimeMessage({ type: "session_cleared", eventKind: "sync" })
     this.globalData.userProfile = {
       id: "",
       openid: "",
@@ -478,7 +636,7 @@ App({
   },
 
   getDisplayName() {
-    if (!this.globalData.token) {
+    if (!this.hasActiveSession()) {
       return "访客"
     }
 
@@ -491,15 +649,17 @@ App({
   },
 
   saveManualProfile(profile) {
-    const localProfile = this.saveUserProfile({
+    if (!this.hasActiveSession()) {
+      return Promise.reject(new Error("登录已过期，请重新登录"))
+    }
+
+    const token = this.globalData.token
+    const localProfile = {
+      ...this.globalData.userProfile,
       ...profile,
       source: "manual",
       profileSource: "manual",
       authorized: Boolean(profile.nickname || profile.avatarUrl)
-    })
-
-    if (!this.globalData.token) {
-      return Promise.resolve(localProfile)
     }
 
     return this.request({
@@ -514,6 +674,9 @@ App({
         profileSource: "manual"
       }
     }).then((data) => {
+      if (token !== this.globalData.token) {
+        throw new Error("登录状态已变更，请重试")
+      }
       return this.saveSession(null, data.user)
     })
   },
@@ -581,7 +744,7 @@ App({
 
   getProfileViewModel() {
     const profile = this.globalData.userProfile || {}
-    const isLoggedIn = Boolean(this.globalData.token)
+    const isLoggedIn = this.hasActiveSession()
     const visibleProfile = isLoggedIn ? profile : {}
     const hasProfile = Boolean(visibleProfile.nickname || visibleProfile.avatarUrl)
     const regionParts = [
@@ -621,6 +784,9 @@ App({
     }
 
     this.globalData.realtimeListeners.push(listener)
+    if (this.hasActiveSession()) {
+      this.fetchPendingMessages()
+    }
 
     return () => {
       this.globalData.realtimeListeners = this.globalData.realtimeListeners.filter(item => item !== listener)
@@ -638,7 +804,7 @@ App({
   },
 
   connectRealtime() {
-    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseTask) {
+    if (!this.globalData.sseForeground || !this.hasActiveSession() || this.globalData.sseTask) {
       return
     }
 
@@ -647,14 +813,17 @@ App({
       this.globalData.sseReconnectTimer = null
     }
 
+    const sseClientId = this.getSseClientId()
+    const sseUrl = `${SSE_URL}?clientId=${encodeURIComponent(sseClientId)}`
     const task = wx.request({
-      url: SSE_URL,
+      url: sseUrl,
       method: "GET",
       enableChunked: true,
       timeout: 600000,
       header: {
         Accept: "text/event-stream",
-        Authorization: `Bearer ${this.globalData.token}`
+        Authorization: `Bearer ${this.globalData.token}`,
+        "x-sse-client-id": sseClientId
       },
       success: () => {},
       fail: () => {},
@@ -685,6 +854,8 @@ App({
       this.globalData.sseReconnectTimer = null
     }
 
+    this.closeRealtimeServerClient()
+
     const task = this.globalData.sseTask
     this.globalData.sseTask = null
     this.globalData.sseConnected = false
@@ -695,8 +866,26 @@ App({
     }
   },
 
+  closeRealtimeServerClient() {
+    if (!this.globalData.token) {
+      return
+    }
+
+    const sseClientId = this.getSseClientId()
+    wx.request({
+      url: `${SSE_URL}?clientId=${encodeURIComponent(sseClientId)}`,
+      method: "DELETE",
+      header: {
+        Authorization: `Bearer ${this.globalData.token}`,
+        "x-sse-client-id": sseClientId
+      },
+      success: () => {},
+      fail: () => {}
+    })
+  },
+
   scheduleRealtimeReconnect() {
-    if (!this.globalData.sseForeground || !this.globalData.token || this.globalData.sseReconnectTimer) {
+    if (!this.globalData.sseForeground || !this.hasActiveSession() || this.globalData.sseReconnectTimer) {
       return
     }
 
@@ -747,26 +936,34 @@ App({
       return
     }
 
-    if (event.id && this.globalData.realtimeHandledIds[event.id]) {
-      return
-    }
-
-    if (event.id) {
-      this.globalData.realtimeHandledIds[event.id] = true
+    if (event.eventKind === "message" && event.id) {
+      const messages = this.globalData.inboxMessages
+      const index = messages.findIndex(message => message.id === event.id)
+      if (event.readAt || !["pending", "none"].includes(event.actionState || "none")) {
+        this.globalData.inboxMessages = messages.filter(message => message.id !== event.id)
+      } else if (index > -1) {
+        messages[index] = event
+      } else {
+        messages.unshift(event)
+      }
     }
 
     this.emitRealtimeMessage(event)
   },
 
   fetchPendingMessages() {
-    if (!this.globalData.token) {
+    if (!this.hasActiveSession()) {
       return Promise.resolve([])
     }
 
+    const token = this.globalData.token
     return this.request({
       url: "/messages/events",
       loadingTitle: ""
     }).then((data) => {
+      if (token !== this.globalData.token) {
+        return []
+      }
       const events = Array.isArray(data.events) ? data.events : []
       events.forEach((event) => {
         this.handleRealtimeMessage(event)
@@ -780,14 +977,7 @@ App({
       return
     }
 
-    this.request({
-      url: "/messages/action",
-      data: {
-        messageId,
-        action: "read"
-      },
-      loadingTitle: ""
-    }).catch(() => {})
+    return this.handleMessageAction(messageId, "read").catch(() => {})
   },
 
   handleMessageAction(messageId, action) {
@@ -795,6 +985,7 @@ App({
       return Promise.reject(new Error("消息参数无效"))
     }
 
+    const token = this.globalData.token
     return this.request({
       url: "/messages/action",
       data: {
@@ -802,6 +993,13 @@ App({
         action
       },
       loadingTitle: action === "read" ? "" : "处理中"
+    }).then((data) => {
+      if (this.globalData.token === token) {
+        this.globalData.inboxMessages = this.globalData.inboxMessages.filter(message => message.id !== messageId)
+        this.globalData.messageQueue = this.globalData.messageQueue.filter(message => message.id !== messageId)
+        this.emitRealtimeMessage({ type: "message_handled", eventKind: "sync", messageId })
+      }
+      return data
     })
   },
 

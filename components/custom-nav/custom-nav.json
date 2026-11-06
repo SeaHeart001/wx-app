@@ -1,3 +1,6 @@
 {
-  "component": true
+  "component": true,
+  "usingComponents": {
+    "message-host": "/components/message-host/message-host"
+  }
 }

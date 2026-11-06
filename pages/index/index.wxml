@@ -1,94 +1,173 @@
 <view class="page">
   <custom-nav
-    title="首页"
-    avatar-url="{{avatarUrl}}"
-    display-name="{{displayName}}"
-    is-logged-in="{{isLoggedIn}}"
-    height-offset="{{5}}"
-    bind:avatartap="handleTopAvatarTap"
+    title="{{accountModalVisible ? '寻找伙伴' : (invitationSent ? '邀请已发送' : (isLoggedIn ? '轻触' : '欢迎来到轻触'))}}"
+    back="{{accountModalVisible || invitationSent}}"
+    bind:back="{{accountModalVisible ? 'closeAccountModal' : 'dismissInvitation'}}"
     bind:layout="handleNavLayout"
   />
-
   <view class="content" style="padding-top: {{contentTop}}px;">
-    <view class="bind-panel">
-      <view class="{{avatarRowClass}}">
-        <view class="person">
-          <view class="avatar-shell self">
-            <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill" />
-            <view wx:else class="avatar-placeholder">{{selfInitial}}</view>
-          </view>
-          <text class="person-name">{{displayName}}</text>
-        </view>
-
-        <view wx:if="{{hasPartner}}" class="link-mark">
-          <view class="link-line"></view>
-          <text class="link-dot">+</text>
-          <view class="link-line"></view>
-        </view>
-
-        <view wx:if="{{hasPartner}}" class="person">
-          <view class="avatar-shell partner">
-            <image wx:if="{{partner.avatarUrl}}" class="avatar-image" src="{{partner.avatarUrl}}" mode="aspectFill" />
-            <view wx:else class="avatar-placeholder">{{partner.initial}}</view>
-          </view>
-          <text class="person-name">{{partner.nickname}}</text>
-        </view>
+    <block wx:if="{{!isLoggedIn}}">
+      <view class="card card-soft welcome-art">
+        <image class="leaf-icon" src="/assets/icons/leaf.svg" />
+        <text class="welcome-copy">轻轻一下，心意到达。</text>
       </view>
-
-      <button class="bind-button" bindtap="openAccountModal">
-        {{bindButtonText}}
+      <text class="eyebrow welcome-eyebrow">A LITTLE CLOSER</text>
+      <text class="page-title">把关心，\n轻轻送到身边。</text>
+      <text class="subtitle">与一个重要的人建立连接，\n用一次拍一拍，表达此刻的想念。</text>
+      <button class="primary-button welcome-login" bindtap="handleLoginAuthorize">
+        微信一键登录
       </button>
-    </view>
-  </view>
-
-  <view wx:if="{{accountModalVisible}}" class="account-mask">
-    <view class="account-modal">
-      <view class="modal-head">
-        <text class="modal-title">选择账号</text>
-        <button class="modal-close" bindtap="closeAccountModal">×</button>
-      </view>
-
+      <text class="hint">登录后，完善资料并找到想连接的人。</text>
+    </block>
+    <block wx:elif="{{accountModalVisible}}">
+      <text class="eyebrow">FIND YOUR PERSON</text>
+      <text class="page-title">把熟悉的人，\n带到这里。</text>
+      <text class="subtitle">输入对方的昵称、账号或 OpenID</text>
       <view class="search-row">
         <input
           class="search-input"
-          placeholder="昵称或 OpenID"
+          placeholder="搜索昵称或账号"
           value="{{accountKeyword}}"
           bindinput="onAccountKeywordInput"
           confirm-type="search"
           bindconfirm="searchAccounts"
         />
-        <button class="search-button" bindtap="searchAccounts">查询</button>
+        <button class="search-button" bindtap="searchAccounts" disabled="{{accountLoading}}">
+          搜索
+        </button>
       </view>
-
-      <scroll-view class="account-list" scroll-y>
-        <view wx:if="{{accountLoading}}" class="empty-text">查询中</view>
-        <view wx:elif="{{!hasAccounts}}" class="empty-text">暂无可绑定账号</view>
-
-        <button
-          wx:for="{{accounts}}"
-          wx:key="id"
-          class="account-item"
-          data-user-id="{{item.id}}"
-          bindtap="bindAccount"
-        >
-          <view class="account-avatar">
-            <image wx:if="{{item.avatarUrl}}" class="account-avatar-image" src="{{item.avatarUrl}}" mode="aspectFill" />
-            <view wx:else class="account-avatar-placeholder">{{item.initial}}</view>
+      <text class="hint">
+        {{accountLoading ? '正在寻找…' : ('搜索结果 · ' + accounts.length + ' 位')}}
+      </text>
+      <view wx:if="{{!accountLoading && !hasAccounts}}" class="card empty-state">
+        <text class="card-title">还没有找到</text>
+        <text class="copy">换个关键词，再试一次吧。</text>
+      </view>
+      <view wx:for="{{accounts}}" wx:key="id" class="card account-card">
+        <view class="account-row">
+          <view class="avatar avatar-partner">
+            <image
+              wx:if="{{item.avatarUrl}}"
+              class="avatar-image"
+              src="{{item.avatarUrl}}"
+              mode="aspectFill"
+            />
+            <text wx:else>{{item.initial}}</text>
           </view>
           <view class="account-info">
-            <text class="account-name">{{item.nickname}}</text>
-            <text class="account-openid">{{item.openid}}</text>
+            <text class="card-title">{{item.nickname}}</text>
+            <text class="copy account-id">{{item.account || item.openid}}</text>
           </view>
+        </view>
+        <button
+          class="primary-button"
+          data-user-id="{{item.id}}"
+          bindtap="bindAccount"
+          disabled="{{!!bindingUserId}}"
+          loading="{{bindingUserId === item.id}}"
+        >
+          发送绑定邀请
         </button>
-      </scroll-view>
-    </view>
+      </view>
+      <text class="hint">请确认是你认识的人，再发出邀请。</text>
+    </block>
+    <block wx:elif="{{invitationSent}}">
+      <view class="card card-soft invitation-card">
+        <image class="check-icon" src="/assets/icons/check.svg" />
+        <view class="avatar avatar-partner invitation-avatar">
+          <image
+            wx:if="{{requestedPartner.avatarUrl}}"
+            class="avatar-image"
+            src="{{requestedPartner.avatarUrl}}"
+            mode="aspectFill"
+          />
+          <text wx:else>{{requestedPartner.initial || '友'}}</text>
+        </view>
+        <text class="invitation-title">邀请已送达</text>
+        <text class="invitation-copy">等待{{requestedPartner.nickname || '对方'}}确认</text>
+        <text class="copy">对方同意后，你们就能互相拍一拍。</text>
+      </view>
+      <button class="secondary-button invitation-back" bindtap="dismissInvitation">回到首页</button>
+      <text class="hint">邀请状态将在收到回复后更新。</text>
+    </block>
+    <block wx:else>
+      <text class="eyebrow">{{hasPartner ? 'A LITTLE CLOSER' : 'HELLO, YOU'}}</text>
+      <text class="page-title">{{hasPartner ? '此刻，想起你。' : '从一个人，\n到彼此相伴。'}}</text>
+      <text class="subtitle">
+        {{hasPartner ? '不必找话题，轻轻打个招呼就好。' : '找到那个你想轻轻打个招呼的人。'}}
+      </text>
+      <view class="card {{hasPartner ? 'card-soft' : ''}}">
+        <view class="avatar-row">
+          <button class="avatar self-avatar" bindtap="handleTopAvatarTap" aria-label="我的资料">
+            <image
+              wx:if="{{avatarUrl}}"
+              class="avatar-image"
+              src="{{avatarUrl}}"
+              mode="aspectFill"
+            />
+            <text wx:else>{{selfInitial}}</text>
+          </button>
+          <image class="heart-icon" src="/assets/icons/heart.svg" />
+          <button
+            class="avatar avatar-partner"
+            bindtap="{{hasPartner ? 'handlePartnerAvatarTap' : 'openAccountModal'}}"
+            aria-label="{{hasPartner ? '给伙伴发送提醒' : '寻找伙伴'}}"
+          >
+            <image
+              wx:if="{{hasPartner && partner.avatarUrl}}"
+              class="avatar-image"
+              src="{{partner.avatarUrl}}"
+              mode="aspectFill"
+            />
+            <text wx:else>{{hasPartner ? partner.initial : '?'}}</text>
+          </button>
+        </view>
+        <block wx:if="{{hasPartner}}">
+          <view class="names-row">
+            <text>我 · {{displayName}}</text>
+            <text>{{partner.nickname}} · 伙伴</text>
+          </view>
+          <text class="connection-status">你们已建立连接</text>
+        </block>
+        <block wx:else>
+          <text class="card-title empty-title">你的连接，等待开始</text>
+          <text class="copy">搜索对方昵称或账号，发送一份绑定邀请。</text>
+          <button class="primary-button find-button" bindtap="openAccountModal">
+            寻找我的伙伴
+          </button>
+        </block>
+      </view>
+      <view wx:if="{{hasPartner}}" class="card interaction-card">
+        <view class="interaction-head">
+          <image class="hand-icon" src="/assets/icons/hand.svg" />
+          <view class="interaction-copy">
+            <text class="card-title">让对方知道，你在。</text>
+            <text class="copy">把这一刻的关心，轻轻送出去。</text>
+          </view>
+        </view>
+        <button
+          class="primary-button"
+          bindtap="handlePartnerAvatarTap"
+          wx:for="{{messageTypes}}"
+          wx:key="code"
+          data-message-type="{{item.code}}"
+          disabled="{{sendingMessage}}"
+          loading="{{sendingMessage}}"
+        >
+          {{item.name}} {{partner.nickname}}
+        </button>
+      </view>
+      <button wx:if="{{hasPartner}}" class="text-button change-binding" bindtap="openAccountModal">
+        更换绑定账号 ›
+      </button>
+      <text wx:else class="hint">需要双方确认，才能建立连接。</text>
+    </block>
   </view>
-
   <auth-modal
     visible="{{showLoginPrompt}}"
-    title="授权登录"
-    message="点击确认后通过微信登录凭证换取 openid，并建立后端登录态。未点击前不会自动登录。"
-    confirm-text="确认登录"
+    title="欢迎来到轻触"
+    message="登录后，与一个重要的人建立连接。"
+    confirm-text="微信一键登录"
     cancel-text="稍后再说"
     bind:confirm="handleLoginAuthorize"
     bind:cancel="dismissLoginPrompt"

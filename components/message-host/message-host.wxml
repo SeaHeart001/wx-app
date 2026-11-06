@@ -1,0 +1,37 @@
+<view wx:if="{{currentMessage}}" class="message-mask">
+  <view class="message-card">
+    <view class="avatar avatar-partner message-avatar">
+      <image
+        wx:if="{{senderAvatar}}"
+        class="avatar-image"
+        src="{{senderAvatar}}"
+        mode="aspectFill"
+      />
+      <text wx:else>{{senderInitial}}</text>
+    </view>
+    <text class="message-title">{{currentMessage.title || '有人想起了你'}}</text>
+    <text class="message-copy">{{currentMessage.content || '你有一条新消息'}}</text>
+    <block wx:if="{{currentMessage.actionState === 'pending'}}">
+      <button
+        class="primary-button"
+        data-action="accept"
+        bindtap="handleDecision"
+        loading="{{submitting}}"
+        disabled="{{submitting}}"
+      >
+        {{currentMessage.type === 'binding_request' ? '同意绑定' : '同意'}}
+      </button>
+      <button
+        class="secondary-button"
+        data-action="decline"
+        bindtap="handleDecision"
+        disabled="{{submitting}}"
+      >
+        {{currentMessage.type === 'binding_request' ? '拒绝邀请' : '拒绝'}}
+      </button>
+    </block>
+    <button wx:else class="primary-button" data-action="read" bindtap="handleDecision">
+      知道了
+    </button>
+  </view>
+</view>

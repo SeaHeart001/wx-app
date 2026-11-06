@@ -1,0 +1,74 @@
+<view class="page">
+  <custom-nav title="消息" bind:layout="handleNavLayout" />
+  <view class="content" style="padding-top: {{contentTop}}px;">
+    <text class="eyebrow">INCOMING</text>
+    <text class="page-title">有人，想起了你。</text>
+    <text class="subtitle">待处理的邀请和未读提醒，都在这里。</text>
+    <view wx:if="{{!isLoggedIn}}" class="card empty-state">
+      <text class="card-title">登录后，接住每一份关心</text>
+      <text class="copy">登录即可查看邀请和互动提醒。</text>
+      <button class="primary-button login-button" bindtap="openLoginPrompt">微信一键登录</button>
+    </view>
+    <view wx:elif="{{!messages.length}}" class="card empty-state">
+      <text class="card-title">{{loading ? '正在查看消息…' : '暂时没有新消息'}}</text>
+      <text class="copy">有新的关心到来时，会在这里提醒你。</text>
+    </view>
+    <view wx:for="{{messages}}" wx:key="id" class="card">
+      <view class="message-row">
+        <view class="avatar avatar-partner message-avatar">
+          <image
+            wx:if="{{item.senderAvatar}}"
+            class="avatar-image"
+            src="{{item.senderAvatar}}"
+            mode="aspectFill"
+          />
+          <text wx:else>{{item.senderInitial}}</text>
+        </view>
+        <view class="message-info">
+          <text class="card-title">{{item.title}}</text>
+          <text class="state-label">{{item.senderName}} · {{item.stateLabel}}</text>
+        </view>
+      </view>
+      <text class="copy message-content">{{item.content}}</text>
+      <block wx:if="{{item.actionState === 'pending'}}">
+        <button
+          class="primary-button"
+          data-id="{{item.id}}"
+          data-action="accept"
+          bindtap="handleAction"
+          disabled="{{!!actionMessageId}}"
+        >
+          同意绑定
+        </button>
+        <button
+          class="secondary-button"
+          data-id="{{item.id}}"
+          data-action="decline"
+          bindtap="handleAction"
+          disabled="{{!!actionMessageId}}"
+        >
+          拒绝邀请
+        </button>
+      </block>
+      <button
+        wx:else
+        class="secondary-button"
+        data-id="{{item.id}}"
+        data-action="read"
+        bindtap="handleAction"
+        disabled="{{!!actionMessageId}}"
+      >
+        知道了
+      </button>
+    </view>
+  </view>
+  <auth-modal
+    visible="{{showLoginPrompt}}"
+    title="欢迎来到轻触"
+    message="登录后即可查看待处理邀请和互动提醒。"
+    confirm-text="微信一键登录"
+    cancel-text="稍后再说"
+    bind:confirm="handleLoginAuthorize"
+    bind:cancel="dismissLoginPrompt"
+  />
+</view>

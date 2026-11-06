@@ -1,0 +1,36 @@
+.report-page {
+  background: #e9eddf;
+}
+.report-content {
+  padding-bottom: calc(46rpx + env(safe-area-inset-bottom));
+}
+.report-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 27rpx;
+}
+.report-line {
+  display: block;
+  font-size: 27rpx;
+  color: #8a867d;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.report-line-first {
+  color: #35432d;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+.report-thanks {
+  display: block;
+  margin-top: 38rpx;
+  color: #687a53;
+  font-size: 29rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.back-button,
+.retry-button {
+  margin-top: 38rpx !important;
+}

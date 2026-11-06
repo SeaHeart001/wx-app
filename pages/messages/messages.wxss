@@ -1,0 +1,36 @@
+.message-row {
+  display: flex;
+  align-items: center;
+  gap: 23rpx;
+}
+.message-avatar {
+  width: 92rpx;
+  height: 92rpx;
+  font-size: 31rpx;
+}
+.message-info {
+  flex: 1;
+  min-width: 0;
+}
+.message-info .card-title {
+  font-size: 29rpx;
+  overflow-wrap: break-word;
+}
+.state-label {
+  display: block;
+  margin-top: 4rpx;
+  color: #8a867d;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+.message-content {
+  margin: 23rpx 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.card .secondary-button {
+  margin-top: 23rpx !important;
+}
+.login-button {
+  margin-top: 30rpx !important;
+}

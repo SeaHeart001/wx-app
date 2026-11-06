@@ -1,29 +1,36 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/profile/profile"
+    "pages/profile/profile",
+    "pages/messages/messages",
+    "pages/report/report"
   ],
   "window": {
-    "navigationBarTitleText": "账号服务测试",
-    "navigationBarBackgroundColor": "#1E40AF",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#F2F5FB",
-    "backgroundColorTop": "#F2F5FB",
-    "backgroundColorBottom": "#F2F5FB"
+    "navigationBarTitleText": "轻触",
+    "navigationBarBackgroundColor": "#FAF8F4",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF8F4",
+    "backgroundColorTop": "#FAF8F4",
+    "backgroundColorBottom": "#FAF8F4"
   },
   "tabBar": {
-    "color": "#6B7280",
-    "selectedColor": "#2563EB",
+    "custom": true,
+    "color": "#8A867D",
+    "selectedColor": "#687A53",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页"
+        "text": "轻触"
+      },
+      {
+        "pagePath": "pages/messages/messages",
+        "text": "消息"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "个人中心"
+        "text": "我的"
       }
     ]
   },

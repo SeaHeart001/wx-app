@@ -1,0 +1,125 @@
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #faf8f4;
+}
+.content {
+  box-sizing: border-box;
+  padding: 0 46rpx calc(176rpx + env(safe-area-inset-bottom));
+}
+.eyebrow {
+  display: block;
+  color: #687a53;
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 1rpx;
+}
+.page-title {
+  display: block;
+  margin-top: 38rpx;
+  color: #302e29;
+  font-size: 54rpx;
+  line-height: 1.5;
+  font-weight: 700;
+  white-space: pre-line;
+}
+.subtitle {
+  display: block;
+  margin-top: 38rpx;
+  color: #8a867d;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.card {
+  margin-top: 38rpx;
+  padding: 38rpx;
+  border-radius: 46rpx;
+  background: #fff;
+  box-sizing: border-box;
+}
+.card-soft {
+  background: #e9eddf;
+}
+.card-title {
+  display: block;
+  font-size: 35rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.copy,
+.hint {
+  display: block;
+  color: #8a867d;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.hint {
+  margin-top: 38rpx;
+  font-size: 23rpx;
+}
+.primary-button,
+.secondary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  min-height: 100rpx;
+  padding: 20rpx 24rpx;
+  border: 1rpx solid #35432d;
+  border-radius: 31rpx;
+  box-sizing: border-box;
+  font-size: 29rpx;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  word-break: break-word;
+}
+.primary-button {
+  background: #687a53;
+  color: #fff;
+}
+.secondary-button {
+  background: #e9eddf;
+  color: #35432d;
+}
+.primary-button[disabled],
+.secondary-button[disabled] {
+  opacity: 0.55;
+}
+.text-button {
+  width: 100% !important;
+  padding: 20rpx 0;
+  color: #687a53;
+  font-size: 25rpx;
+  text-align: center;
+}
+.avatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 123rpx;
+  height: 123rpx;
+  border-radius: 50%;
+  background: #e9eddf;
+  color: #687a53;
+  font-size: 41rpx;
+  font-weight: 700;
+  overflow: hidden;
+}
+.avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.avatar-partner {
+  background: #f1d5c4;
+}
+.empty-state {
+  padding: 68rpx 38rpx;
+  text-align: center;
+}
+.empty-state .copy {
+  margin-top: 16rpx;
+}

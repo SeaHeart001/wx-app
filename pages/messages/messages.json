@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "auth-modal": "/components/auth-modal/auth-modal",
+    "custom-nav": "/components/custom-nav/custom-nav"
+  },
+  "navigationStyle": "custom",
+  "backgroundColor": "#FAF8F4",
+  "enablePullDownRefresh": true
+}

@@ -44,6 +44,13 @@ Page({
     editorVisible: false,
     draftAvatarUrl: "",
     draftNickname: "",
+    draftCountry: "",
+    draftProvince: "",
+    draftCity: "",
+    regionText: "",
+    reportYear: new Date().getFullYear(),
+    saving: false,
+    uploading: false,
     genderOptions: GENDER_OPTIONS,
     selectedGenderCode: "unknown"
   },
@@ -54,7 +61,18 @@ Page({
   },
 
   onShow() {
+    this.syncTabBar()
     this.syncView()
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+    }
+  },
+
+  syncTabBar() {
+    const tabBar = this.getTabBar && this.getTabBar()
+    if (tabBar) {
+      tabBar.setData({ selected: 2, hidden: this.data.editorVisible || app.globalData.messageModalShowing })
+    }
   },
 
   syncView() {
@@ -64,22 +82,26 @@ Page({
       avatarUrl: vm.avatarUrl,
       displayName: vm.displayName,
       isLoggedIn: vm.isLoggedIn,
+      showLoginPrompt: vm.isLoggedIn ? false : this.data.showLoginPrompt,
       loginStatus: vm.loginStatus,
       profileStatus: vm.profileStatus,
       updatedAtDisplay: vm.updatedAtDisplay,
       memberIdText: vm.isLoggedIn ? formatDisplayId(app.getDisplayId()) : "未登录",
-      selectedGenderCode: vm.selectedGenderCode
+      selectedGenderCode: vm.selectedGenderCode,
+      regionText: vm.regionText === "未获取" ? "完善资料，让彼此更熟悉" : vm.regionText
     }
 
     if (
       this.data.avatarUrl === nextData.avatarUrl &&
       this.data.displayName === nextData.displayName &&
       this.data.isLoggedIn === nextData.isLoggedIn &&
+      this.data.showLoginPrompt === nextData.showLoginPrompt &&
       this.data.loginStatus === nextData.loginStatus &&
       this.data.profileStatus === nextData.profileStatus &&
       this.data.updatedAtDisplay === nextData.updatedAtDisplay &&
       this.data.memberIdText === nextData.memberIdText &&
-      this.data.selectedGenderCode === nextData.selectedGenderCode
+      this.data.selectedGenderCode === nextData.selectedGenderCode &&
+      this.data.regionText === nextData.regionText
     ) {
       return
     }
@@ -108,37 +130,71 @@ Page({
     })
   },
 
+  resetEditorState() {
+    this.setData({
+      editorVisible: false,
+      draftAvatarUrl: "",
+      draftNickname: "",
+      draftCountry: "",
+      draftProvince: "",
+      draftCity: "",
+      selectedGenderCode: "unknown"
+    })
+  },
+
   persistDraftProfile() {
+    if (this.profileSavePromise) {
+      return this.profileSavePromise.then(() => this.persistDraftProfile())
+    }
+    if (this.data.uploading) {
+      return Promise.resolve(false)
+    }
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+      this.syncView()
+      return Promise.resolve(false)
+    }
+
     const nickname = (this.data.draftNickname || "").trim()
     const avatarUrl = this.data.draftAvatarUrl || this.data.avatarUrl
     const gender = genderCodeToValue(this.data.selectedGenderCode)
+    const country = this.data.draftCountry.trim()
+    const province = this.data.draftProvince.trim()
+    const city = this.data.draftCity.trim()
     const currentProfile = app.globalData.userProfile || {}
-
-    if (!nickname && !avatarUrl) {
-      return
-    }
 
     if (
       nickname === (currentProfile.nickname || "") &&
       avatarUrl === (currentProfile.avatarUrl || "") &&
-      gender === (currentProfile.gender || 0)
+      gender === (currentProfile.gender || 0) &&
+      country === (currentProfile.country || "") &&
+      province === (currentProfile.province || "") &&
+      city === (currentProfile.city || "")
     ) {
-      return
+      return Promise.resolve(true)
     }
 
-    app.saveManualProfile({
+    this.profileSavePromise = app.saveManualProfile({
       nickname: nickname || currentProfile.nickname || "",
       avatarUrl,
-      gender
+      gender,
+      country,
+      province,
+      city
     }).then(() => {
       this.syncView()
+      return true
     }).catch((err) => {
       app.showRequestError(err)
+      return false
+    }).finally(() => {
+      this.profileSavePromise = null
     })
+    return this.profileSavePromise
   },
 
   openEditor() {
-    if (!app.globalData.token) {
+    if (!app.hasActiveSession()) {
       this.setData({
         showLoginPrompt: true
       })
@@ -150,7 +206,7 @@ Page({
 
   openEditorPanel() {
     app.ensureLogin(() => {
-      if (!app.globalData.token) {
+      if (!app.hasActiveSession()) {
         this.setData({
           showLoginPrompt: true,
           editorVisible: false,
@@ -169,8 +225,12 @@ Page({
         editorVisible: true,
         draftAvatarUrl: profile.avatarUrl || "",
         draftNickname: profile.nickname || "",
+        draftCountry: profile.country || "",
+        draftProvince: profile.province || "",
+        draftCity: profile.city || "",
         selectedGenderCode: vm.selectedGenderCode
       })
+      this.syncTabBar()
 
       this.syncView()
     }, (err) => {
@@ -179,19 +239,27 @@ Page({
   },
 
   handleLoginAuthorize() {
-    app.ensureLogin(() => {
-      this.setData({
-        showLoginPrompt: false
+    app.requestMessageSubscribe({
+      silent: true
+    }).then(() => {
+      app.ensureLogin(() => {
+        this.setData({
+          showLoginPrompt: false
+        })
+        this.syncView()
+        this.openEditorPanel()
+        wx.showToast({
+          title: "登录成功",
+          icon: "success"
+        })
+      }, (err) => {
+        app.showRequestError(err)
       })
-      this.syncView()
-      this.openEditorPanel()
-      wx.showToast({
-        title: "登录成功",
-        icon: "success"
-      })
-    }, (err) => {
-      app.showRequestError(err)
     })
+  },
+
+  handleSubscribeMessages() {
+    app.requestMessageSubscribe()
   },
 
   dismissLoginPrompt() {
@@ -201,6 +269,9 @@ Page({
   },
 
   closeEditor() {
+    if (this.data.saving || this.data.uploading) {
+      return
+    }
     this.startCloseEditor(true)
   },
 
@@ -216,9 +287,19 @@ Page({
     this.setData({
       editorVisible: false
     })
+    this.syncTabBar()
   },
 
   onChooseAvatar(event) {
+    if (!app.hasActiveSession()) {
+      this.resetEditorState()
+      this.syncView()
+      this.setData({
+        showLoginPrompt: true
+      })
+      return
+    }
+
     const avatarUrl = event.detail.avatarUrl
     const previousAvatarUrl = this.data.draftAvatarUrl || this.data.avatarUrl || ""
 
@@ -228,7 +309,8 @@ Page({
 
     this.setData({
       avatarUrl,
-      draftAvatarUrl: avatarUrl
+      draftAvatarUrl: avatarUrl,
+      uploading: true
     })
 
     app.uploadFile(avatarUrl, {
@@ -245,7 +327,8 @@ Page({
 
       this.setData({
         avatarUrl: uploadedAvatarUrl,
-        draftAvatarUrl: uploadedAvatarUrl
+        draftAvatarUrl: uploadedAvatarUrl,
+        uploading: false
       })
 
       this.persistDraftProfile()
@@ -256,6 +339,8 @@ Page({
         draftAvatarUrl: previousAvatarUrl
       })
       app.showRequestError(err)
+    }).finally(() => {
+      this.setData({ uploading: false })
     })
   },
 
@@ -280,20 +365,46 @@ Page({
     this.persistDraftProfile()
   },
 
+  handleRegionChange(event) {
+    const region = event.detail.value || []
+    this.setData({ draftProvince: region[0] || "", draftCity: region[1] || "" })
+  },
+
+  handleCountryInput(event) {
+    this.setData({ draftCountry: event.detail.value || "" })
+  },
+
+  openReport() {
+    if (!app.hasActiveSession()) {
+      this.setData({ showLoginPrompt: true })
+      return
+    }
+    wx.navigateTo({ url: "/pages/report/report" })
+  },
+
   handleManualSubmit(event) {
+    if (this.data.saving || this.data.uploading) {
+      return
+    }
     this.setData({
       draftNickname: (event.detail.nickname || this.data.draftNickname || "").trim()
     })
 
-    this.persistDraftProfile()
-    this.startCloseEditor(false)
-    wx.showToast({
-      title: "已保存",
-      icon: "success"
+    this.setData({ saving: true })
+    this.persistDraftProfile().then((saved) => {
+      if (saved) {
+        this.startCloseEditor(false)
+        wx.showToast({ title: "已保存", icon: "success" })
+      }
+    }).finally(() => {
+      this.setData({ saving: false })
     })
   },
 
   logoutProfile() {
+    if (this.data.saving || this.data.uploading) {
+      return
+    }
     app.clearUserProfile()
 
     this.setData({
